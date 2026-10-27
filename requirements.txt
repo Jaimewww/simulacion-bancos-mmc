@@ -1,0 +1,4 @@
+# Installed during implementation (course brief, "Herramientas y recursos")
+numpy        # simulation RNG and aggregation
+matplotlib   # figures and animation (view layer)
+pandas       # experiment result tables (control layer)
