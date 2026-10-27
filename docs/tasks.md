@@ -20,7 +20,7 @@ pruebas y documentación. [Tabla de commits](../contributing.md).
 
 Depende de #1.
 
-- [ ] **B1. Estado** (`sistema.py`): cajeros compartidos y dos colas lógicas;
+- [x] **B1. Estado** (`sistema.py`): cajeros compartidos y dos colas lógicas;
   prioridad no expropiativa, FCFS dentro de nivel, FCFS global en referencia.
   Pruebas deterministas: un preferencial no interrumpe; al liberar cajero
   precede al general; mismo nivel conserva orden; no queda cajero libre

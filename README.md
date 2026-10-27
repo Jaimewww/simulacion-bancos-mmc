@@ -1,7 +1,7 @@
 # Simulación bancaria M/M/c — esqueleto MVC
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
-prioridad no expropiativa con cajeros compartidos. **Estado: esqueleto;
+prioridad no expropiativa con cajeros compartidos. **Estado: B1 implementado;
 el motor, los experimentos y las vistas todavía no están implementados.**
 
 ## Arquitectura
@@ -42,6 +42,10 @@ Para la implementación posterior: crear un entorno virtual e instalar
   servicio/atendido (esperas `None` si no aplican), condiciones
   preferenciales sin doble conteo, `Evento`/`TipoEvento` con registro no
   decreciente, `ConteoNivel` y `ResultadoCorrida` con semilla y disciplina.
+- B1, `sistema.py`: cajeros compartidos, colas FIFO por nivel, FCFS global y
+  prioridad no expropiativa. Una liberación asigna inmediatamente al siguiente
+  cliente. En eventos simultáneos, B2 procesará primero las finalizaciones por
+  cajero y luego las llegadas por `id_llegada`.
 
 ## Trabajo del grupo
 
