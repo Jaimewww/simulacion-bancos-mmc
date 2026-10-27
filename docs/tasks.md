@@ -25,7 +25,7 @@ Depende de #1.
   Pruebas deterministas: un preferencial no interrumpe; al liberar cajero
   precede al general; mismo nivel conserva orden; no queda cajero libre
   con espera. Definir desempate de eventos simultáneos.
-- [ ] **B2. Motor** (`motor_des.py`): calendario DES, llegadas Poisson,
+- [x] **B2. Motor** (`motor_des.py`): calendario DES, llegadas Poisson,
   servicios exponenciales con μ común, semillas reproducibles; entregar
   registros y áreas temporales de cola/ocupación en ventana medida.
   Cortar llegadas al horizonte, conservar pendientes y documentar si se

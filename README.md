@@ -1,8 +1,8 @@
 # Simulación bancaria M/M/c — esqueleto MVC
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
-prioridad no expropiativa con cajeros compartidos. **Estado: B1 implementado;
-el motor, los experimentos y las vistas todavía no están implementados.**
+prioridad no expropiativa con cajeros compartidos. **Estado: B1 y B2
+implementados; los experimentos y las vistas todavía no están implementados.**
 
 ## Arquitectura
 
@@ -18,18 +18,21 @@ elige al próximo cliente. El controlador no duplica la lógica de atención.
 
 ## Arranque y comprobación actuales
 
-Python 3.10 o superior. Las pruebas del esqueleto no necesitan dependencias.
+Python 3.10 o superior. B2 utiliza NumPy para el generador reproducible; crear
+un entorno virtual e instalar las dependencias antes de ejecutar las pruebas.
 
 ```bash
-python3 -m unittest discover -s tests -v
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
 python3 main.py --help
 python3 main.py
 ```
 
 El último comando termina con código 2 e informa que la simulación está
 pendiente. No genera resultados ni acepta todavía opciones de escenarios.
-Para la implementación posterior: crear un entorno virtual e instalar
-`requirements.txt` (NumPy, Matplotlib y pandas; `unittest` viene con Python).
+`requirements.txt` incluye NumPy, Matplotlib y pandas; `unittest` viene con
+Python.
 
 ## Contratos del modelo (issue #1)
 
@@ -46,6 +49,10 @@ Para la implementación posterior: crear un entorno virtual e instalar
   prioridad no expropiativa. Una liberación asigna inmediatamente al siguiente
   cliente. En eventos simultáneos, B2 procesará primero las finalizaciones por
   cajero y luego las llegadas por `id_llegada`.
+- B2, `motor_des.py`: carga Poisson y servicios exponenciales reproducibles,
+  calendario de eventos, registro para replay e integrales de cola/ocupación.
+  La corrida se detiene sin drenaje en el horizonte y conserva los pendientes;
+  los denominadores usan solo la ventana posterior al calentamiento.
 
 ## Trabajo del grupo
 
