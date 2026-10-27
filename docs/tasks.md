@@ -56,11 +56,11 @@ Depende de #1 y #2; el cálculo analítico puede prepararse tras #1.
 
 Depende de #3 y su formato de resultados.
 
-- [ ] **D1. Figuras** (`src/vista/graficas.py`): espera por nivel y capacidad,
+- [x] **D1. Figuras** (`src/vista/graficas.py`): espera por nivel y capacidad,
   FCFS/prioridad global contra analítico, utilización/ociosidad. Incluir
   unidades, leyendas, familia, p, réplicas e IC. Prueba con datos sintéticos
   rotulados como tales, sin presentarlos como resultados del estudio.
-- [ ] **D2. Tablero e integración** (`src/vista/animacion.py`): dibujar estado
+- [x] **D2. Tablero e integración** (`src/vista/animacion.py`): dibujar estado
   de colas y cajeros desde eventos reales, reloj y leyenda; captura estática
   como mínimo, replay interactivo opcional. Verificar que no modifica
   resultados; ejecutar pipeline de ejemplo y documentar interpretación,

@@ -17,6 +17,7 @@ import unittest
 from pathlib import Path
 
 import matplotlib.pyplot as plt
+import numpy as np
 from matplotlib.container import ErrorbarContainer
 
 from src.vista import graficas
@@ -74,10 +75,10 @@ def series_dibujadas(ax):
     series = {}
     for contenedor in ax.containers:
         if isinstance(contenedor, ErrorbarContainer):
-            series[contenedor.get_label()] = list(contenedor.lines[0].get_ydata())
+            series[contenedor.get_label()] = list(np.asarray(contenedor.lines[0].get_ydata()))
     for linea in ax.get_lines():
         if not linea.get_label().startswith("_"):
-            series.setdefault(linea.get_label(), list(linea.get_ydata()))
+            series.setdefault(linea.get_label(), list(np.asarray(linea.get_ydata())))
     return series
 
 
@@ -128,6 +129,9 @@ class GraficasTests(unittest.TestCase):
 
     def test_invertir_intervalo_gira_extremos(self):
         invertido = graficas.invertir_intervalo(graficas.Intervalo(0.6, 3, 0.5, 0.7))
+        assert invertido.media is not None
+        assert invertido.inf is not None
+        assert invertido.sup is not None
         self.assertAlmostEqual(invertido.media, 0.4)
         self.assertAlmostEqual(invertido.inf, 0.3)  # 1 - 0.7
         self.assertAlmostEqual(invertido.sup, 0.5)  # 1 - 0.5
@@ -136,6 +140,7 @@ class GraficasTests(unittest.TestCase):
         self.assertIsNone(vacio.media)
         self.assertIsNone(vacio.sup)
         sin_ic = graficas.invertir_intervalo(graficas.Intervalo(0.6, 1, None, None))
+        assert sin_ic.media is not None
         self.assertAlmostEqual(sin_ic.media, 0.4)
         self.assertIsNone(sin_ic.inf)
         self.assertIsNone(sin_ic.sup)
@@ -165,7 +170,9 @@ class GraficasTests(unittest.TestCase):
         ax = fig.get_axes()[0]
         self.assertIn("minuto", ax.get_ylabel())
         self.assertIn("cajeros", ax.get_xlabel())
-        self.assertEqual([t.get_text() for t in ax.get_legend().get_texts()],
+        leyenda = ax.get_legend()
+        assert leyenda is not None
+        self.assertEqual([t.get_text() for t in leyenda.get_texts()],
                          ["FCFS · Wq preferencial (n=3)", "FCFS · Wq general (n=3)",
                           "Prioridad · Wq preferencial (n=3)", "Prioridad · Wq general (n=3)"])
         lineas = series_dibujadas(ax)

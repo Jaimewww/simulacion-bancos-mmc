@@ -1,9 +1,9 @@
-# Simulación bancaria M/M/c — esqueleto MVC
+# Simulación bancaria M/M/c con arquitectura MVC
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
 prioridad no expropiativa con cajeros compartidos. **Estado: B1 y B2
 implementados; C1/C2 incluyen métricas, experimentos y CLI; D1 genera las
-figuras del informe. El tablero D2 sigue pendiente.**
+figuras del informe y D2 el tablero estático desde eventos reales.**
 
 ## Arquitectura
 
@@ -96,15 +96,16 @@ En `--salida` se crean archivos UTF-8 con marca temporal:
   verificaciones detalladas por réplica. No serializa objetos de corrida
   como cadenas opacas.
 
-Estos formatos amplían la salida inicial de C2; D1 ya consume los campos
-documentados y D2 deberá hacerlo. Los resultados son simulaciones bajo supuestos, no
-mediciones bancarias. La duración/calentamiento y el número de réplicas
+Estos formatos amplían la salida inicial de C2; D1 consume los campos
+documentados. D2 no lee el CSV: reconstruye el tablero desde el registro de
+eventos de una corrida real del motor. Los resultados son simulaciones bajo
+supuestos, no mediciones bancarias. La duración/calentamiento y el número de réplicas
 requieren estudio piloto antes de sacar conclusiones del estudio.
 
 ## Figuras D1 (vista)
 
 ```powershell
-.venv/Scripts/python.exe -m src.vista.graficas salidas/alex-check/resumen_XXXX.csv --salida salidas/figuras --sintetico
+.venv/Scripts/python.exe -m src.vista.graficas salidas/experimentos/resumen_<marca>.csv --salida salidas/figuras
 ```
 
 La vista consume un `resumen_*.csv` de C2 y no simula ni recalcula: los
@@ -119,6 +120,49 @@ unidades se separan; mezclarlas dentro de una familia es un error de entrada.
 estudio". El backend lo elige el entorno (`MPLBACKEND=Agg` en pruebas) y la
 CLI cierra las figuras. Son figuras descriptivas: sin τp/τg no se elige
 capacidad óptima.
+
+## Tablero D2 (vista)
+
+Cadena completa de ejemplo (una sola corrida real por tablero):
+
+```powershell
+# 1) experimentos C2 -> CSV de réplicas y resumen
+.venv/Scripts/python.exe main.py --familia marhamah --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --replicas 10 --semilla-base 12345 --salida salidas/experimentos
+# 2) figuras D1 desde el resumen recién creado (usar la marca de tiempo)
+.venv/Scripts/python.exe -m src.vista.graficas salidas/experimentos/resumen_<marca>.csv --salida salidas/figuras
+# 3) tablero D2 desde una corrida real del motor
+.venv/Scripts/python.exe -m src.control.tablero --familia marhamah --c 3 --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --semilla 12345 --instante 300 --salida salidas/tablero/tablero.png
+```
+
+`--p`, `--origen-p`, `--horizon` y `--warmup` son obligatorios: no hay valores
+inventados. `--familia`, `--c`, `--semilla`, `--disciplina`, `--instante` y
+`--salida` tienen valores documentados en `--help`. Si se omite `--instante`
+se dibuja el horizonte y el rótulo lo dice. Una entrada inválida (p fuera de
+[0,1], c fuera de la familia, instante negativo o posterior al horizonte)
+termina con código 2 antes de crear el PNG.
+
+El tablero reconstruye todos los eventos con `t <= instante` en el orden del
+registro y muestra cajeros ocupados/libres con el id de cliente, las dos
+colas en orden de atención con etiquetas P/G y conteos, el reloj con unidad,
+la disciplina, familia, semilla y p/`origen_p`. La vista no simula, no sortea,
+no reordena y no modifica la corrida: solo lee `ResultadoCorrida`. Un `None`
+se conserva: cajero libre, cola vacía y τp/τg "no definido".
+
+**Qué es y qué no es.** Los datos son **simulados** por el motor M/M/c bajo
+supuestos (Poisson, servicios exponenciales, sin abandono ni rechazo); no hay
+datos de **campo** ni mediciones del banco. Solo los fixtures de prueba son
+**sintéticos** y se rotulan así. El tablero es una captura estática
+descriptiva de una corrida: no estima esperas estacionarias, no aporta IC y
+no elige capacidad óptima. La censura sigue presente: clientes en cola o en
+servicio al instante mostrado tienen resultados incompletos. El replay
+event-by-event (interactivo) **no está implementado**; queda como opcional.
+
+**Declaración de IA.** Para D1/D2 se utilizó asistencia de IA en código,
+pruebas y documentación. El equipo debe revisar, comprender y adaptar esta
+declaración al formato del curso. No se acredita automáticamente cumplir
+el límite de uso de IA del 20 % ni se atribuye un origen no verificado al
+resto del código. Los parámetros de referencia proceden del documento
+académico; no se inventan mediciones ni proporciones demográficas.
 
 ## Contratos del modelo (issue #1)
 
@@ -144,7 +188,7 @@ capacidad óptima.
 
 - [Orden de los ocho commits](contributing.md): Ivett → Fernando → Alex → Jaime.
 - [Tareas y criterios de aceptación](docs/tasks.md).
-- [Propuesta del recurso visual](docs/recurso_visual.md).
+- [Recurso visual y tablero](docs/recurso_visual.md).
 - Documento académico original: `Simulación_Bancos.docx`.
 
 Dos familias separadas: Adams/Yeboah (45 clientes/h, 12 clientes/h/cajero,
