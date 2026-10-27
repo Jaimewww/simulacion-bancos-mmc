@@ -40,7 +40,7 @@ Depende de #1 y #2; el cálculo analítico puede prepararse tras #1.
   P0, Erlang C, Lq, L, Wq, W y ρ; rechazar contraste estacionario si ρ≥1.
   Caso de prueba M/M/1 λ=1, μ=2: ρ=0.5, Lq=0.5, Wq=0.5, L=1, W=1.
   Medir esperas por nivel y Lq temporal; contadores pendientes explícitos.
-- [ ] **C2. Experimentos/CLI** (`src/control/experimentos.py`, `main.py`):
+- [x] **C2. Experimentos/CLI** (`src/control/experimentos.py`, `main.py`):
   familias × capacidades × FCFS/prioridad × réplicas, semillas registradas,
   calentamiento/horizonte configurables, CSV por réplica y resumen con IC95%.
   Usar mismas llegadas, etiquetas y servicios preasignados para comparar

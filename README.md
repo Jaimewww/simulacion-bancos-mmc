@@ -2,7 +2,7 @@
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
 prioridad no expropiativa con cajeros compartidos. **Estado: B1 y B2
-implementados; los experimentos y las vistas todavía no están implementados.**
+implementados; C1/C2 incluyen métricas, experimentos y CLI. Las vistas D1/D2 siguen pendientes.**
 
 ## Arquitectura
 
@@ -11,7 +11,7 @@ implementados; los experimentos y las vistas todavía no están implementados.**
 | Modelo | `src/modelo/` | Parámetros, clientes, estado, DES, métricas y Erlang C |
 | Controlador | `src/control/` | Experimentos, semillas, réplicas y exportación |
 | Vista | `src/vista/` | Gráficas y tablero de colas/cajeros |
-| Entrada | `main.py` | Futura CLI que invoca al controlador |
+| Entrada | `main.py` | CLI que invoca al controlador |
 
 El modelo no importa control ni vista. La vista consume resultados; no
 elige al próximo cliente. El controlador no duplica la lógica de atención.
@@ -21,18 +21,84 @@ elige al próximo cliente. El controlador no duplica la lógica de atención.
 Python 3.10 o superior. B2 utiliza NumPy para el generador reproducible; crear
 un entorno virtual e instalar las dependencias antes de ejecutar las pruebas.
 
-```bash
-python3 -m venv .venv
-.venv/bin/python -m pip install -r requirements.txt
-.venv/bin/python -m unittest discover -s tests -v
-python3 main.py --help
-python3 main.py
+Desde la raíz, en PowerShell (sin `PYTHONPATH`):
+
+```powershell
+.venv/Scripts/python.exe -m pip install -r requirements.txt
+Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
+.venv/Scripts/python.exe -m unittest discover -s tests -v
+.venv/Scripts/python.exe main.py --help
+.venv/Scripts/python.exe main.py --familia marhamah --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --replicas 10 --semilla-base 12345 --salida resultados_experimentos
 ```
 
-El último comando termina con código 2 e informa que la simulación está
-pendiente. No genera resultados ni acepta todavía opciones de escenarios.
-`requirements.txt` incluye NumPy, Matplotlib y pandas; `unittest` viene con
-Python.
+La CLI acepta `--familia adams_yeboah|marhamah|ambas`, `--solo-fcfs` y
+`--solo-prioridad` (ambas banderas juntas ejecutan ambas disciplinas).
+Las réplicas deben ser enteros positivos y la semilla base un entero >=0.
+Errores de parámetros terminan con código 2. Se usa exclusivamente el paquete
+`src.modelo`/`src.control`, sin modificar `sys.path` ni crear alias de módulos.
+NumPy genera la carga y SciPy calcula cuantiles t; instalar `requirements.txt`.
+
+## Experimentos y métricas C1/C2
+
+Las familias conservan sus unidades: horas para Adams/Yeboah y minutos para
+Marhamah; horizonte, calentamiento, Wq y W usan esa unidad. Lq se expresa en
+clientes y la utilización es una fracción. Por defecto se usan 8/1 horas o
+480/60 minutos (horizonte/calentamiento), 10 réplicas y p=0.3, rotulados como
+supuestos experimentales, sin justificación piloto todavía. `--horizon` y
+`--warmup` se aplican en la unidad propia de cada familia, también con `ambas`.
+`--origen-p` registra la fuente o el supuesto declarado; no se inventan
+proporciones por condición demográfica. Sin tau_p y tau_g no se selecciona
+capacidad óptima.
+
+Cada réplica preasigna llegadas, niveles y servicios con semilla base+i antes
+de aplicar la disciplina. Ambas disciplinas comparten esos datos, cajeros y
+mu; no se simulan dos bancos separados. Las réplicas usan semillas distintas.
+
+Las medias de clientes seleccionan llegadas en `[warmup, horizon]`: Wq usa
+solo quienes iniciaron servicio, W y servicio medio solo quienes terminaron.
+El Wq global pondera cada cliente observado, no promedia medias de niveles.
+Un nivel sin observaciones conserva `None`, exportado como celda vacía.
+Los clientes aún en cola tienen espera final desconocida; los que están en
+servicio tienen Wq conocido y permanencia final desconocida. Esta censura
+puede sesgar las medias hacia abajo. No hay drenaje.
+
+Las integrales Lq y utilización miden todo el estado en `[warmup, horizon]`,
+incluidos clientes llegados antes del calentamiento. Por ello no son medias
+de la cohorte. Little se ejecuta por réplica, por nivel y global: compara Lq
+con tasa de llegadas observada de la cohorte por Wq. Reporta valores y
+diferencias con tolerancia relativa exploratoria del 20% (escala máxima de
+ambos lados), que no constituye aceptación estadística. Censura, arrastre
+inicial y horizonte finito impiden exigir igualdad. Además se reconstruye
+la integral con cada espera recortada a la ventana, incluyendo pendientes:
+esta identidad debe coincidir a tolerancia numérica 1e-9. Conservación usa
+flujos de eventos y estados por nivel, con diferencias enteras exactamente
+cero. Una discrepancia se reporta, no se oculta.
+
+El resumen usa medias de réplicas, IC95% t de Student con n-1 grados de
+libertad y n válido por métrica; con n<2 no calcula límites. Supone réplicas
+independientes y medias aproximadamente normales; pocas réplicas, censura
+y sesgo transitorio limitan la interpretación. El contraste agregado compara
+Wq global, Lq y utilización con Erlang C (solo rho<1), reportando diferencias
+y si el teórico cae en el IC. Esto no prueba equivalencia ni corrige el sesgo
+de bordes; hay comparaciones múltiples. No se asigna Erlang C global a niveles.
+
+En `--salida` se crean archivos UTF-8 con marca temporal:
+
+- `replicas_*.csv`: escenario, disciplina, semilla, p/origen, unidad, ventana,
+  conteos y pendientes separados por cola/servicio y nivel, Wq y tamaños de
+  muestra, W/servicio por nivel, Lq, utilización y verificaciones de Little
+  como JSON en `little_json`, además de `conservacion_ok`.
+- `resumen_*.csv`: una fila por escenario/disciplina; cada métrica incluye
+  `_media`, `_n`, `_ic95_inf`, `_ic95_sup`, `_metodo`, `_nota`; semillas y
+  contraste Erlang C en `coherencia_json`. Son IC entre réplicas válidas.
+- `metadata_*.json`: configuración, semillas, agregados, contrastes y
+  verificaciones detalladas por réplica. No serializa objetos de corrida
+  como cadenas opacas.
+
+Estos formatos amplían la salida inicial de C2; D1/D2 deberán consumir los
+campos documentados. Los resultados son simulaciones bajo supuestos, no
+mediciones bancarias. La duración/calentamiento y el número de réplicas
+requieren estudio piloto antes de sacar conclusiones del estudio.
 
 ## Contratos del modelo (issue #1)
 
@@ -76,30 +142,3 @@ las tres condiciones comparten el mismo nivel de prioridad. Los valores de sensi
 prioridad no interrumpe servicios y mantiene FCFS dentro de cada nivel.
 Sin abandono, rechazo ni cajeros exclusivos. No declarar un número óptimo
 hasta fijar un criterio para ambos niveles.
-
-## C1: analitico y metricas implementados
-
-Las familias conservan sus unidades: horas para Adams/Yeboah y minutos para
-Marhamah; horizonte, calentamiento, Wq y W usan esa unidad. Lq se expresa en
-clientes y la utilización es una fracción.
-
-Las medias de clientes seleccionan llegadas en `[warmup, horizon]`: Wq usa
-solo quienes iniciaron servicio, W y servicio medio solo quienes terminaron.
-El Wq global pondera cada cliente observado, no promedia medias de niveles.
-Un nivel sin observaciones conserva `None`, exportado como celda vacía.
-Los clientes aún en cola tienen espera final desconocida; los que están en
-servicio tienen Wq conocido y permanencia final desconocida. Esta censura
-puede sesgar las medias hacia abajo. No hay drenaje.
-
-Las integrales Lq y utilización miden todo el estado en `[warmup, horizon]`,
-incluidos clientes llegados antes del calentamiento. Por ello no son medias
-de la cohorte. Little se ejecuta por réplica, por nivel y global: compara Lq
-con tasa de llegadas observada de la cohorte por Wq. Reporta valores y
-diferencias con tolerancia relativa exploratoria del 20% (escala máxima de
-ambos lados), que no constituye aceptación estadística. Censura, arrastre
-inicial y horizonte finito impiden exigir igualdad. Además se reconstruye
-la integral con cada espera recortada a la ventana, incluyendo pendientes:
-esta identidad debe coincidir a tolerancia numérica 1e-9. Conservación usa
-flujos de eventos y estados por nivel, con diferencias enteras exactamente
-cero. Una discrepancia se reporta, no se oculta.
-

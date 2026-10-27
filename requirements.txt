@@ -2,3 +2,4 @@
 numpy        # simulation RNG and aggregation
 matplotlib   # figures and animation (view layer)
 pandas       # experiment result tables (control layer)
+scipy        # Student t confidence intervals
