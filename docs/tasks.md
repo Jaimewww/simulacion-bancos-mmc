@@ -6,7 +6,7 @@ pruebas y documentación. [Tabla de commits](../contributing.md).
 
 ## Ivett — @ivecanahi — issue #1
 
-- [ ] **A1. Parámetros** (`src/modelo/parametros.py`): construir ambas familias
+- [x] **A1. Parámetros** (`src/modelo/parametros.py`): construir ambas familias
   sin mezclar tasas; validar μ>0, λ>0, c entero positivo, 0≤p≤1, horizonte
   mayor que calentamiento; verificar λp+λg=λ y estabilidad para contraste
   estacionario. Pruebas: unidades, valores documentados y rechazo inválido.

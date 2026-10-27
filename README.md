@@ -31,6 +31,14 @@ pendiente. No genera resultados ni acepta todavía opciones de escenarios.
 Para la implementación posterior: crear un entorno virtual e instalar
 `requirements.txt` (NumPy, Matplotlib y pandas; `unittest` viene con Python).
 
+## Contratos del modelo (issue #1)
+
+- A1, `parametros.py`: `ParametrosEscenario` inmutable y validado con unidad
+  explícita (`Unidad.HORA`/`Unidad.MINUTO`), `ADAMS_YEBOAH`, `MARHAMAH`,
+  `familia_*`, `escenarios_familia`, ρ y `exigir_estabilidad()` (ρ<1),
+  `en_unidad()` para convertir. p, `origen_p`, horizonte y calentamiento
+  son obligatorios; réplicas y τp/τg quedan `None` (pendientes) por defecto.
+
 ## Trabajo del grupo
 
 - [Orden de los ocho commits](contributing.md): Ivett → Fernando → Alex → Jaime.
