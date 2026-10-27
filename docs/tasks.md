@@ -10,7 +10,7 @@ pruebas y documentación. [Tabla de commits](../contributing.md).
   sin mezclar tasas; validar μ>0, λ>0, c entero positivo, 0≤p≤1, horizonte
   mayor que calentamiento; verificar λp+λg=λ y estabilidad para contraste
   estacionario. Pruebas: unidades, valores documentados y rechazo inválido.
-- [ ] **A2. Contratos** (`cliente.py`, `resultados.py`): niveles, identidad y
+- [x] **A2. Contratos** (`cliente.py`, `resultados.py`): niveles, identidad y
   marcas temporales; dos disciplinas; resultados por corrida con semilla,
   registros de eventos, métricas e ingresos/atendidos/pendientes por nivel.
   Pruebas de orden temporal y de estados incompletos. Un cliente con varias
