@@ -1,5 +1,5 @@
 # Bank MVC setup
-Objective: scaffold and publish the group project; branch: main (bootstrap), then feature/bootstrap-mvc; delivery: public Jaimewww/simulacion-bancos-mmc.
+Objective: scaffold and publish the group project; branch: feature/bootstrap-mvc bootstrapped then renamed main for first publication; delivery: public Jaimewww/simulacion-bancos-mmc.
 Checks: Python unittest smoke tests, compilation, GitHub readback. Simulation implementation remains assigned to the students.
 
 ## Specs
@@ -13,8 +13,8 @@ S6: "github.com/Jaimewww/simulacion-bancos-mmc, público"; "Sí, mapeo correcto"
 S7: "Los criterios de espera τp y τg y la distribución entre las condiciones preferenciales seguirán pendientes de respaldo o definición explícita como supuestos experimentales."
 
 ## Tasks
-T1 [S1-S5] inline (writer unavailable) — done — normalized scaffold, member tasks, contribution order and smoke checks; commit pending.
-T2 [S3,S5-S7] inline — in_progress — create public repository, issues and collaborator invitations; read back assignments and publish checked scaffold; commit pending.
+T1 [S1-S5] inline (writer unavailable) — done — normalized scaffold, member tasks, contribution order and smoke checks; commit a909a1f.
+T2 [S3,S5-S7] inline — done — public repository created, scaffold a909a1f pushed to main, issues #1–#4 created and invitations verified; #1–#3 formal assignment unavailable until invitations accepted, named responsibility present. Delivery log recorded in follow-up documentation commit.
 T3 [S3,S6] independent verifier — dropped — unavailable due to session Git identity; user explicitly accepted publication with self-checks only. No independent verification claimed.
 
 ## Log
@@ -25,3 +25,6 @@ L4: Structural checks completed: python3 -m unittest discover -s tests -v (4 pas
 L5: Writer admission failed with Git identity changed, no writer ran. Independent verifier task mvq55kyg-1-0ppo also failed: could not register launched worktree, Session Git identity changed. No further verification attempted. Native assess with risk item5 returned nativeRisk unassessable because intended untracked scope was not declared; independent verifier requested. No review lineage started. No commits, remote, issues, invitations or pushes performed. Need user decision: repair session Git binding (new session in local repository) or explicitly accept self-verification-only publication with independent proof unavailable. RDD switch remains on; native review continuation pending after the decision.
 L6: Rollback boundary: new scaffold/docs are independent of original docx; local .git isolates ancestor home repository and has no commits. No destructive rollback authorized.
 L7: User: "si bro publica en el repo publico con la configuracion, tambien ten en cuenta esto: Los criterios de espera τp y τg y la distribución entre las condiciones preferenciales seguirán pendientes de respaldo o definición explícita como supuestos experimentales." Publication with unavailable independent verification explicitly accepted; no fabricated thresholds or demographic proportions. Native review not declined by this acceptance.
+L8: Final normalized candidate assessment: nativeRisk medium, reviewDue=false, reviewDueReason=under_budget; no native review lineage required or created. Self-checks repeated once for final scaffold: 4 unittest tests passed, compileall and staged diff check exit 0. Independent verifier remains unavailable, not passed.
+L9: Bootstrap commit a909a1fdf89e10fae6159b4dc0a7e3dcc42cf98c pushed and remote commit verified. Public https://github.com/Jaimewww/simulacion-bancos-mmc; default branch main; issues enabled; wiki/projects disabled; allow_rebase_merge=true, allow_squash_merge=false, allow_merge_commit=false. Issues #1 Ivett, #2 Fernando, #3 Alex, #4 Jaime created; all include pending-assumptions constraint. #4 formally assigned to Jaimewww. Three write invitations pending for ivecanahi, Fede-dev11, Alex-Francis-07. HTTP422 on first assigned issue request created no issue; reconciled empty issue list, then created #1–#3 without assignees and explicit responsible users. Those formal assignments need acceptance and owner action, not a false completed assignment claim.
+L10: Follow-up documentation records issue URLs, actual collaborator status and publication evidence; bootstrap commits remain outside the eight student contributions. Simulation itself remains intentionally unimplemented; next student turn is Ivett A1/A2.

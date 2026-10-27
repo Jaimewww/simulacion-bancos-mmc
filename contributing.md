@@ -3,8 +3,9 @@
 ## Orden de aportes
 
 Cada integrante realiza **dos commits propios, consecutivos**, en el orden
-siguiente. El commit de preparación asistida del repositorio es independiente:
-no cuenta como aporte académico de Jaime ni reemplaza el trabajo del grupo.
+siguiente. Los commits de preparación y registro de publicación del repositorio
+son independientes: no cuentan como aportes académicos de Jaime ni reemplazan
+el trabajo del grupo.
 No se crean commits en nombre de otra persona.
 
 | Orden | Integrante | GitHub | Tarea / issue | Commit propuesto | Aporte y verificación |
@@ -19,6 +20,17 @@ No se crean commits en nombre de otra persona.
 | 8 | Jaime Landazuri | @Jaimewww | D2 / #4 | `feat(vista): display queue and teller board (#4)` | Tablero visual, integración final y prueba de ejemplo |
 
 Los detalles y criterios de aceptación están en [tasks.md](docs/tasks.md).
+Issues: [Ivett #1](https://github.com/Jaimewww/simulacion-bancos-mmc/issues/1),
+[Fernando #2](https://github.com/Jaimewww/simulacion-bancos-mmc/issues/2),
+[Alex #3](https://github.com/Jaimewww/simulacion-bancos-mmc/issues/3),
+[Jaime #4](https://github.com/Jaimewww/simulacion-bancos-mmc/issues/4).
+
+Se enviaron invitaciones de escritura a los tres colaboradores. Al publicar,
+estaban pendientes: los issues #1–#3 identifican al responsable en el cuerpo,
+pero su asignación formal queda pendiente de aceptar la invitación. Luego el
+propietario debe asignarlos desde GitHub. #4 sí está asignado a @Jaimewww.
+La configuración permite rebase merge y desactiva squash y merge commits;
+no impone automáticamente los turnos, que el grupo debe respetar.
 
 ## Cómo conservar el orden
 
