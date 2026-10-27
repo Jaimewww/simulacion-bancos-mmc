@@ -2,7 +2,8 @@
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
 prioridad no expropiativa con cajeros compartidos. **Estado: B1 y B2
-implementados; C1/C2 incluyen métricas, experimentos y CLI. Las vistas D1/D2 siguen pendientes.**
+implementados; C1/C2 incluyen métricas, experimentos y CLI; D1 genera las
+figuras del informe. El tablero D2 sigue pendiente.**
 
 ## Arquitectura
 
@@ -95,10 +96,29 @@ En `--salida` se crean archivos UTF-8 con marca temporal:
   verificaciones detalladas por réplica. No serializa objetos de corrida
   como cadenas opacas.
 
-Estos formatos amplían la salida inicial de C2; D1/D2 deberán consumir los
-campos documentados. Los resultados son simulaciones bajo supuestos, no
+Estos formatos amplían la salida inicial de C2; D1 ya consume los campos
+documentados y D2 deberá hacerlo. Los resultados son simulaciones bajo supuestos, no
 mediciones bancarias. La duración/calentamiento y el número de réplicas
 requieren estudio piloto antes de sacar conclusiones del estudio.
+
+## Figuras D1 (vista)
+
+```powershell
+.venv/Scripts/python.exe -m src.vista.graficas salidas/alex-check/resumen_XXXX.csv --salida salidas/figuras --sintetico
+```
+
+La vista consume un `resumen_*.csv` de C2 y no simula ni recalcula: los
+teóricos se copian de `coherencia_json`. Por familia crea
+`d1_<familia>_wq_niveles.png`, `_wq_global_erlang.png` y
+`_utilizacion_ociosidad.png`: Wq por nivel con FCFS y prioridad, Wq global
+contra Erlang C, y ρ con ociosidad 1-ρ (extremos del IC girados: 1-sup,
+1-inf). Cada figura rotula familia, unidad, p/origen_p, réplicas e IC95 %; una
+celda vacía no se dibuja como cero y con n<2 no hay barra de IC. Familias y
+unidades se separan; mezclarlas dentro de una familia es un error de entrada.
+`--sintetico` solo agrega el rótulo "datos sintéticos: no son resultados del
+estudio". El backend lo elige el entorno (`MPLBACKEND=Agg` en pruebas) y la
+CLI cierra las figuras. Son figuras descriptivas: sin τp/τg no se elige
+capacidad óptima.
 
 ## Contratos del modelo (issue #1)
 
