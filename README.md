@@ -76,3 +76,30 @@ las tres condiciones comparten el mismo nivel de prioridad. Los valores de sensi
 prioridad no interrumpe servicios y mantiene FCFS dentro de cada nivel.
 Sin abandono, rechazo ni cajeros exclusivos. No declarar un número óptimo
 hasta fijar un criterio para ambos niveles.
+
+## C1: analitico y metricas implementados
+
+Las familias conservan sus unidades: horas para Adams/Yeboah y minutos para
+Marhamah; horizonte, calentamiento, Wq y W usan esa unidad. Lq se expresa en
+clientes y la utilización es una fracción.
+
+Las medias de clientes seleccionan llegadas en `[warmup, horizon]`: Wq usa
+solo quienes iniciaron servicio, W y servicio medio solo quienes terminaron.
+El Wq global pondera cada cliente observado, no promedia medias de niveles.
+Un nivel sin observaciones conserva `None`, exportado como celda vacía.
+Los clientes aún en cola tienen espera final desconocida; los que están en
+servicio tienen Wq conocido y permanencia final desconocida. Esta censura
+puede sesgar las medias hacia abajo. No hay drenaje.
+
+Las integrales Lq y utilización miden todo el estado en `[warmup, horizon]`,
+incluidos clientes llegados antes del calentamiento. Por ello no son medias
+de la cohorte. Little se ejecuta por réplica, por nivel y global: compara Lq
+con tasa de llegadas observada de la cohorte por Wq. Reporta valores y
+diferencias con tolerancia relativa exploratoria del 20% (escala máxima de
+ambos lados), que no constituye aceptación estadística. Censura, arrastre
+inicial y horizonte finito impiden exigir igualdad. Además se reconstruye
+la integral con cada espera recortada a la ventana, incluyendo pendientes:
+esta identidad debe coincidir a tolerancia numérica 1e-9. Conservación usa
+flujos de eventos y estados por nivel, con diferencias enteras exactamente
+cero. Una discrepancia se reporta, no se oculta.
+
