@@ -38,6 +38,10 @@ Para la implementación posterior: crear un entorno virtual e instalar
   `familia_*`, `escenarios_familia`, ρ y `exigir_estabilidad()` (ρ<1),
   `en_unidad()` para convertir. p, `origen_p`, horizonte y calentamiento
   son obligatorios; réplicas y τp/τg quedan `None` (pendientes) por defecto.
+- A2, `cliente.py`/`resultados.py`: `Cliente` con estados en cola/en
+  servicio/atendido (esperas `None` si no aplican), condiciones
+  preferenciales sin doble conteo, `Evento`/`TipoEvento` con registro no
+  decreciente, `ConteoNivel` y `ResultadoCorrida` con semilla y disciplina.
 
 ## Trabajo del grupo
 
