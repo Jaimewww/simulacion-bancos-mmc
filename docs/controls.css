@@ -37,3 +37,40 @@
   font-size: 8px;
   letter-spacing: .02em;
 }
+
+.stepper input {
+  width: 44px;
+  height: 32px;
+  padding: 0 2px;
+  color: var(--ink);
+  font: 13px "DM Mono", monospace;
+  text-align: center;
+  background: white;
+  border: 0;
+  outline: none;
+}
+
+.desks {
+  align-content: start;
+  grid-auto-rows: 76px;
+  padding-right: 5px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-color: var(--green) #e4ebe6;
+  scrollbar-width: thin;
+}
+
+.desks::-webkit-scrollbar { width: 7px; }
+.desks::-webkit-scrollbar-track { background: #e4ebe6; border-radius: 8px; }
+.desks::-webkit-scrollbar-thumb { background: var(--green); border-radius: 8px; }
+
+.desk .person {
+  top: 7px;
+  left: 50%;
+  margin-left: -14px;
+  transform: none !important;
+}
+
+@media (max-width: 760px) {
+  .desks { grid-auto-rows: 72px; }
+}
