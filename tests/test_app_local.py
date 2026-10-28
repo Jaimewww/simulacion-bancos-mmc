@@ -1,6 +1,8 @@
 import unittest
 from src.modelo.resultados import Disciplina, ResultadoCorrida
-from src.vista.app_local import ConfiguracionVista, crear_parametros, ejecutar_simulacion
+from src.vista.app_local import (ConfiguracionVista, crear_parametros,
+                                 ejecutar_simulacion, resumen_capacidad,
+                                 serie_ocupacion)
 
 def config(**changes):
     base=dict(llegadas_hora=18, servicios_hora=12, cajeros=3,
@@ -19,5 +21,14 @@ class VistaLocalTests(unittest.TestCase):
     def test_usa_motor_real_y_es_reproducible(self):
         a,b=ejecutar_simulacion(config()),ejecutar_simulacion(config())
         self.assertIsInstance(a,ResultadoCorrida); self.assertEqual(a.eventos,b.eventos)
+
+    def test_graficas_se_derivan_del_resultado_real(self):
+        resultado=ejecutar_simulacion(config())
+        tiempos,ocupados=serie_ocupacion(resultado)
+        datos=resumen_capacidad(resultado)
+        self.assertEqual((tiempos[0],tiempos[-1]),(0.0,resultado.parametros.horizon))
+        self.assertTrue(all(0 <= valor <= resultado.parametros.c for valor in ocupados))
+        self.assertAlmostEqual(datos["rho"],resultado.parametros.rho)
+        self.assertAlmostEqual(datos["utilizacion"],resultado.metricas["utilizacion"])
 
 if __name__ == "__main__": unittest.main()

@@ -10,6 +10,9 @@ import tkinter as tk
 from dataclasses import dataclass
 from tkinter import messagebox, ttk
 
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.figure import Figure
+
 from src.modelo.motor_des import MotorDES
 from src.modelo.parametros import ParametrosEscenario, Unidad
 from src.modelo.resultados import Disciplina, ResultadoCorrida, TipoEvento
@@ -61,6 +64,34 @@ def ejecutar_simulacion(config: ConfiguracionVista) -> ResultadoCorrida:
     return MotorDES(parametros, config.disciplina, semilla=config.semilla).correr()
 
 
+def serie_ocupacion(resultado: ResultadoCorrida) -> tuple[list[float], list[int]]:
+    """Devuelve la ocupacion instantanea reconstruida del registro de eventos."""
+    tiempos, ocupados, cantidad = [0.0], [0], 0
+    for evento in resultado.eventos:
+        if evento.tipo is TipoEvento.INICIO_SERVICIO:
+            cantidad += 1
+        elif evento.tipo is TipoEvento.FIN_SERVICIO:
+            cantidad -= 1
+        else:
+            continue
+        tiempos.append(evento.instante)
+        ocupados.append(cantidad)
+    tiempos.append(resultado.parametros.horizon)
+    ocupados.append(cantidad)
+    return tiempos, ocupados
+
+
+def resumen_capacidad(resultado: ResultadoCorrida) -> dict[str, float]:
+    """Carga, capacidad y utilizaciones comparables de una corrida real."""
+    p = resultado.parametros
+    return {
+        "carga": p.lam / p.mu,
+        "capacidad": float(p.c),
+        "rho": p.rho,
+        "utilizacion": float(resultado.metricas["utilizacion"]),
+    }
+
+
 class AplicacionSimulacion(tk.Tk):
     """Panel de parámetros y replay de eventos del backend Python."""
 
@@ -107,7 +138,7 @@ class AplicacionSimulacion(tk.Tk):
         pane = ttk.Panedwindow(self, orient="horizontal"); pane.pack(fill="both", expand=True)
         panel, sala = ttk.Frame(pane, style="Panel.TFrame", width=310), ttk.Frame(pane, style="Sala.TFrame")
         pane.add(panel, weight=0); pane.add(sala, weight=1)
-        self._panel(panel); self._sala(sala)
+        self._panel(panel); self._contenido(sala)
 
     def _panel(self, panel) -> None:
         ttk.Label(panel, text="Diseña el flujo\nde tu banco.", style="Titulo.TLabel").pack(
@@ -146,6 +177,16 @@ class AplicacionSimulacion(tk.Tk):
         ttk.Label(parent, text=label, style="Campo.TLabel").pack(anchor="w", pady=(10, 2))
         ttk.Spinbox(parent, textvariable=variable, from_=minimo, to=maximo).pack(fill="x")
 
+    def _contenido(self, contenedor) -> None:
+        paginas = ttk.Notebook(contenedor)
+        paginas.pack(fill="both", expand=True)
+        sala = ttk.Frame(paginas, style="Sala.TFrame")
+        graficas = ttk.Frame(paginas, style="Sala.TFrame")
+        paginas.add(sala, text="  Simulacion  ")
+        paginas.add(graficas, text="  Graficas  ")
+        self._sala(sala)
+        self._graficas(graficas)
+
     def _sala(self, sala) -> None:
         header = ttk.Frame(sala, style="Sala.TFrame"); header.pack(fill="x", padx=22, pady=(18, 8))
         ttk.Label(header, text="REPLAY DE EVENTOS REALES", background=PAPEL,
@@ -168,6 +209,56 @@ class AplicacionSimulacion(tk.Tk):
         sy.pack(side="right", fill="y", padx=(0, 10), pady=10)
         self.tiempo = ttk.Scale(sala, from_=0, to=1, command=self.buscar, state="disabled")
         self.tiempo.pack(fill="x", padx=22, pady=16)
+
+    def _graficas(self, parent) -> None:
+        self.figura = Figure(figsize=(8.2, 6.3), dpi=100, facecolor=PAPEL)
+        self.ax_ocupacion = self.figura.add_subplot(211)
+        self.ax_capacidad = self.figura.add_subplot(212)
+        self.figura.subplots_adjust(left=.1, right=.96, top=.94, bottom=.1, hspace=.5)
+        self.canvas = FigureCanvasTkAgg(self.figura, master=parent)
+        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=12)
+        self._graficas_vacias()
+
+    def _graficas_vacias(self) -> None:
+        for ax, titulo in ((self.ax_ocupacion, "Ocupacion real de los cajeros"),
+                           (self.ax_capacidad, "Capacidad del sistema")):
+            ax.clear(); ax.set_title(titulo, color=TINTA, fontweight="bold")
+            ax.text(.5, .5, "Ejecuta una simulacion para visualizarla",
+                    ha="center", va="center", color=MUTED, transform=ax.transAxes)
+            ax.set_xticks([]); ax.set_yticks([])
+        self.canvas.draw_idle()
+
+    def actualizar_graficas(self) -> None:
+        if self.resultado is None:
+            return
+        datos = resumen_capacidad(self.resultado)
+        tiempos, ocupados = serie_ocupacion(self.resultado)
+        ax = self.ax_ocupacion; ax.clear()
+        ax.step(tiempos, ocupados, where="post", color=VERDE, linewidth=1.7,
+                label="Cajeros ocupados")
+        ax.fill_between(tiempos, ocupados, step="post", color=VERDE, alpha=.18)
+        ax.axhline(datos["capacidad"], color=AZUL, linestyle="--",
+                   label=f'Capacidad instalada: {int(datos["capacidad"])}')
+        ax.set(title="Ocupacion real de los cajeros", xlabel="Tiempo (minutos)",
+               ylabel="Cajeros ocupados", xlim=(0, self.resultado.parametros.horizon),
+               ylim=(0, datos["capacidad"] + 1))
+        ax.grid(axis="y", alpha=.2); ax.legend(loc="upper right", fontsize=8)
+
+        ax = self.ax_capacidad; ax.clear()
+        colores = ["#d65b4a" if datos["rho"] >= 1 else VERDE, AZUL]
+        ax.barh(["Carga ofrecida\nλ/μ", "Capacidad instalada\nc"],
+                [datos["carga"], datos["capacidad"]], color=colores, height=.55)
+        estado = "SATURADO (ρ ≥ 1)" if datos["rho"] >= 1 else "ESTABLE (ρ < 1)"
+        ax.set_title(f'Capacidad del sistema · {estado}', color=TINTA, fontweight="bold")
+        ax.set_xlabel("Servidores equivalentes")
+        ax.grid(axis="x", alpha=.2)
+        ax.text(.99, .05,
+                f'ρ teorico: {datos["rho"]:.1%}   ·   utilizacion simulada: {datos["utilizacion"]:.1%}\n'
+                f'ociosidad simulada: {1-datos["utilizacion"]:.1%}',
+                ha="right", va="bottom", transform=ax.transAxes, color=TINTA,
+                bbox={"boxstyle": "round,pad=.4", "facecolor": SUPERFICIE,
+                      "edgecolor": "#d7d2c5"})
+        self.canvas.draw_idle()
 
     @staticmethod
     def _lista(parent, title, color, column):
@@ -192,7 +283,7 @@ class AplicacionSimulacion(tk.Tk):
             messagebox.showerror("Parámetros inválidos", str(exc), parent=self); return
         self.instante = 0.; self.tiempo.configure(to=self.resultado.parametros.horizon, state="normal"); self.tiempo.set(0)
         self.replay.configure(state="normal"); self.estado.set(f"{len(self.resultado.clientes)} llegadas · semilla {self.resultado.semilla}")
-        self.mostrar(0); self.alternar()
+        self.mostrar(0); self.actualizar_graficas(); self.alternar()
 
     def alternar(self) -> None:
         if self.resultado is None: return
