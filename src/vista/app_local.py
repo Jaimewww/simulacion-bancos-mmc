@@ -97,7 +97,7 @@ class AplicacionSimulacion(tk.Tk):
 
     def __init__(self) -> None:
         super().__init__()
-        self.title("Fila Viva · Simulación bancaria M/M/c")
+        self.title("Simulación bancaria M/M/c")
         self.geometry("1180x760")
         self.minsize(920, 620)
         self.configure(bg=PAPEL)
@@ -132,7 +132,7 @@ class AplicacionSimulacion(tk.Tk):
     def _interfaz(self) -> None:
         top = tk.Frame(self, bg=TINTA, height=62)
         top.pack(fill="x"); top.pack_propagate(False)
-        tk.Label(top, text="FILA VIVA · PYTHON", bg=TINTA, fg="white",
+        tk.Label(top, text="SIMULACIÓN BANCARIA · PYTHON", bg=TINTA, fg="white",
                  font=("TkDefaultFont", 15, "bold")).pack(side="left", padx=22)
         tk.Label(top, textvariable=self.estado, bg=TINTA, fg="#68d8b2").pack(side="right", padx=22)
         pane = ttk.Panedwindow(self, orient="horizontal"); pane.pack(fill="both", expand=True)
