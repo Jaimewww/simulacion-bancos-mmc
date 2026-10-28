@@ -189,6 +189,8 @@ académico; no se inventan mediciones ni proporciones demográficas.
 - [Orden de los ocho commits](contributing.md): Ivett → Fernando → Alex → Jaime.
 - [Tareas y criterios de aceptación](docs/tasks.md).
 - [Recurso visual y tablero](docs/recurso_visual.md).
+- [Vista local interactiva en Python](docs/vista_local.md), conectada
+  directamente al motor y al registro de eventos del modelo.
 - Documento académico original: `Simulación_Bancos.docx`.
 
 Dos familias separadas: Adams/Yeboah (45 clientes/h, 12 clientes/h/cajero,
