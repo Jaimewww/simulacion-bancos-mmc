@@ -97,7 +97,7 @@ class ExperimentosTests(unittest.TestCase):
             r = self.cli('--familia','ambas','--replicas','1','--horizon','4',
                          '--warmup','1','--salida',tmp)
             self.assertEqual(r.returncode,0,r.stderr)
-            rows = list(csv.DictReader(next(Path(tmp).glob('resumen_*.csv')).read_text(encoding='utf-8').splitlines()))
+            rows = list(csv.DictReader((Path(tmp)/'resumen.csv').read_text(encoding='utf-8').splitlines()))
             self.assertEqual(len(rows),18)
             self.assertEqual({r['unidad'] for r in rows}, {'hora','minuto'})
             self.assertTrue(all(r['Lq_global_ic95_inf'] == '' for r in rows))
@@ -117,8 +117,8 @@ class ExperimentosTests(unittest.TestCase):
             r = self.cli('--familia','marhamah','--replicas','2','--horizon','20',
                          '--warmup','2','--p','0','--origen-p','supuesto prueba','--salida',tmp)
             self.assertEqual(r.returncode,0,r.stderr)
-            replicas = list(csv.DictReader(next(Path(tmp).glob('replicas_*.csv')).read_text(encoding='utf-8').splitlines()))
-            resumen = list(csv.DictReader(next(Path(tmp).glob('resumen_*.csv')).read_text(encoding='utf-8').splitlines()))
+            replicas = list(csv.DictReader((Path(tmp)/'replicas.csv').read_text(encoding='utf-8').splitlines()))
+            resumen = list(csv.DictReader((Path(tmp)/'resumen.csv').read_text(encoding='utf-8').splitlines()))
             self.assertEqual(len(replicas),16)
             self.assertEqual(len(resumen),8)
             for fila in replicas:
@@ -133,10 +133,24 @@ class ExperimentosTests(unittest.TestCase):
                 self.assertEqual(fila['Lq_global_n'],'2')
                 self.assertEqual(fila['unidad'],'minuto')
                 self.assertEqual(len(json.loads(fila['coherencia_json'])),3)
-            meta = json.loads(next(Path(tmp).glob('metadata_*.json')).read_text(encoding='utf-8'))
+            meta = json.loads((Path(tmp)/'metadata.json').read_text(encoding='utf-8'))
             for ds in meta['matriz'].values():
                 self.assertEqual(ds['fcfs']['semillas'],ds['prioridad']['semillas'])
                 self.assertEqual(len(ds['fcfs']['verificaciones_replicas']),2)
+
+    def test_cli_reemplaza_solo_resultados_generados(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            base = Path(tmp)
+            for nombre in ('replicas_20200101_000000.csv', 'resumen_20200101_000000.csv',
+                           'metadata_20200101_000000.json'):
+                (base/nombre).write_text('anterior', encoding='utf-8')
+            (base/'notas.csv').write_text('conservar', encoding='utf-8')
+            r = self.cli('--familia','marhamah','--replicas','1','--horizon','4',
+                         '--warmup','1','--salida',tmp)
+            self.assertEqual(r.returncode,0,r.stderr)
+            self.assertEqual(sorted(p.name for p in base.iterdir()),
+                             ['figuras','metadata.json','notas.csv','replicas.csv','resumen.csv'])
+            self.assertEqual((base/'notas.csv').read_text(encoding='utf-8'),'conservar')
 
 
 if __name__ == '__main__':

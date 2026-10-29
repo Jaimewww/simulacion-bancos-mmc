@@ -2,7 +2,7 @@
 
 Responsable: Jaime Landazuri (@Jaimewww) — tarea #4, aporte D1.
 
-La vista es de solo lectura: consume el `resumen_*.csv` de la capa de control
+La vista es de solo lectura: consume el `resumen.csv` de la capa de control
 C2 y no simula ni recalcula métricas. Los teóricos se copian tal cual de
 `coherencia_json`. Una métrica vacía se conserva ausente (no se dibuja como
 cero) y con n<2 no se agregan extremos de IC. Cada familia se dibuja aparte
@@ -142,7 +142,7 @@ def _normalizar(archivo):
 
 
 def cargar_resumen(ruta):
-    """Lee un `resumen_*.csv` y devuelve filas normalizadas (no altera el archivo)."""
+    """Lee un `resumen.csv` y devuelve filas normalizadas (no altera el archivo)."""
     try:
         with open(ruta, newline="", encoding="utf-8") as archivo:
             return _normalizar(archivo)
@@ -356,11 +356,15 @@ def _agrupar_por_familia(filas):
 
 
 def guardar_figuras(figuras, directorio, dpi=150):
-    """Guarda cada figura como PNG y devuelve las rutas en orden de creación."""
+    """Reemplaza las figuras D1 anteriores y devuelve las rutas nuevas."""
     try:
         os.makedirs(directorio, exist_ok=True)
     except OSError as exc:
         raise ValueError(f"no se pudo crear el directorio {os.fspath(directorio)!r}: {exc}") from exc
+    for nombre in os.listdir(directorio):
+        ruta_anterior = os.path.join(os.fspath(directorio), nombre)
+        if nombre.startswith("d1_") and nombre.endswith(".png") and os.path.isfile(ruta_anterior):
+            os.unlink(ruta_anterior)
     rutas = []
     for clave, fig in figuras.items():
         ruta = os.path.join(os.fspath(directorio), "d1_" + clave.replace("|", "_") + ".png")
@@ -374,7 +378,7 @@ def main(argv=None) -> int:
         prog="python -m src.vista.graficas",
         description="Figuras D1 desde un resumen C2: Wq por nivel, Wq global vs Erlang C "
                     "y utilización/ociosidad. No simula ni recalcula métricas.")
-    parser.add_argument("resumen", help="ruta del resumen_*.csv exportado por main.py")
+    parser.add_argument("resumen", help="ruta del resumen.csv exportado por main.py")
     parser.add_argument("--salida", default="salidas/figuras", help="directorio de las figuras PNG")
     parser.add_argument("--dpi", type=int, default=150, help="resolución de salida (por defecto 150)")
     parser.add_argument("--sintetico", action="store_true",

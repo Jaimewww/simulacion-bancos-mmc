@@ -4,10 +4,13 @@ import argparse
 import csv
 import json
 import os
-from datetime import datetime
+from pathlib import Path
+import sys
 
 from src.modelo.resultados import Disciplina
 from src.control import experimentos
+
+RESULTADOS_PREDETERMINADOS = Path(__file__).resolve().parent.parent / "resultados_experimentos"
 
 
 def _asegurar_dir(d):
@@ -15,16 +18,50 @@ def _asegurar_dir(d):
     return d
 
 
+def _limpiar_resultados_generados(directorio):
+    """Elimina solo salidas propias anteriores para conservar la última corrida."""
+    base = Path(directorio)
+    patrones = ("replicas.csv", "resumen.csv", "metadata.json",
+                "replicas_[0-9]*.csv", "resumen_[0-9]*.csv",
+                "metadata_[0-9]*.json")
+    for patron in patrones:
+        for ruta in base.glob(patron):
+            if ruta.is_file():
+                ruta.unlink()
+
+
+def _argumentos_guiados() -> list[str]:
+    """Solicita las dos decisiones experimentales necesarias para el informe."""
+    print("\n==============================================")
+    print(" SIMULACIÓN BANCARIA: RESULTADOS Y GRÁFICAS")
+    print("==============================================")
+    print("Se ejecutarán ambas familias: Marhamah y Adams–Yeboah.")
+    print("La proporción preferencial indica qué parte del total de clientes")
+    print("tiene prioridad; por ejemplo, 0.25 significa 25 %.")
+    p = input("Proporción total de clientes preferenciales [0.25]: ").strip() or "0.25"
+    replicas = input("Cantidad de réplicas [30]: ").strip() or "30"
+    return ["--familia", "ambas", "--p", p, "--replicas", replicas,
+            "--origen-p", "supuesto experimental ingresado en main.py"]
+
+
 def main(argv=None) -> int:
+    if argv is None and len(sys.argv) == 1:
+        try:
+            argv = _argumentos_guiados()
+        except (EOFError, KeyboardInterrupt, ValueError) as exc:
+            print(f"Entrada cancelada o inválida: {exc}", file=sys.stderr)
+            return 2
     parser = argparse.ArgumentParser(description="Simulación bancos M/M/c - experimentos C2")
     parser.add_argument("--familia", choices=["adams_yeboah", "marhamah", "ambas"], default="ambas")
-    parser.add_argument("--p", type=float, default=0.3, help="Proporción preferencial (supuesto experimental)")
+    parser.add_argument("--p", type=float, default=0.3,
+                        help="proporción del total de clientes que es preferencial; 0.25 = 25%%")
     parser.add_argument("--origen-p", dest="origen_p", default="supuesto_experimental_sin_dato_medido")
     parser.add_argument("--horizon", type=float, default=None)
     parser.add_argument("--warmup", type=float, default=None)
     parser.add_argument("--replicas", type=int, default=10)
     parser.add_argument("--semilla-base", dest="semilla_base", type=int, default=12345)
-    parser.add_argument("--salida", default="resultados_experimentos")
+    parser.add_argument("--salida", default=os.fspath(RESULTADOS_PREDETERMINADOS),
+                        help="carpeta única de salida (por defecto, resultados_experimentos junto al repositorio)")
     parser.add_argument("--solo-fcfs", action="store_true")
     parser.add_argument("--solo-prioridad", action="store_true")
     args = parser.parse_args(argv)
@@ -59,8 +96,8 @@ def main(argv=None) -> int:
         parser.error(str(exc))
 
     outdir = _asegurar_dir(args.salida)
-    ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-    per_rep = os.path.join(outdir, f"replicas_{ts}.csv")
+    _limpiar_resultados_generados(outdir)
+    per_rep = os.path.join(outdir, "replicas.csv")
     filas = []
     resumen_filas = []
     for clave, discmap in res["matriz"].items():
@@ -102,7 +139,7 @@ def main(argv=None) -> int:
                 fila[nombre + "_ic_metodo"] = info["agregado"][nombre]["metodo"]
             fila["coherencia_json"] = json.dumps(info["coherencia"], ensure_ascii=False)
             resumen_filas.append(fila)
-    resumen = os.path.join(outdir, f"resumen_{ts}.csv")
+    resumen = os.path.join(outdir, "resumen.csv")
     for ruta, datos in ((per_rep, filas), (resumen, resumen_filas)):
         with open(ruta, "w", newline="", encoding="utf-8") as f:
             w = csv.DictWriter(f, fieldnames=list(datos[0]))
@@ -110,11 +147,21 @@ def main(argv=None) -> int:
             w.writerows(datos)
         print(f"CSV: {ruta}")
 
-    meta = os.path.join(outdir, f"metadata_{ts}.json")
+    meta = os.path.join(outdir, "metadata.json")
     with open(meta, "w", encoding="utf-8") as f:
         json.dump({**res, "matriz": {k: {d: {campo: valor for campo, valor in info.items() if campo != "runs"} for d, info in ds.items()} for k, ds in res["matriz"].items()}}, f, indent=2, ensure_ascii=False, allow_nan=False)
     print(f"Metadata/semillas registradas: {meta}")
-    print("Completado. Consultar diferencias, IC y verificaciones por replica en CSV/JSON.")
+    from src.vista import graficas
+    figuras_dir = os.path.join(outdir, "figuras")
+    figuras = graficas.generar_figuras(graficas.cargar_resumen(resumen))
+    try:
+        rutas_figuras = graficas.guardar_figuras(figuras, figuras_dir)
+    finally:
+        for figura in figuras.values():
+            graficas.plt.close(figura)
+    for ruta in rutas_figuras:
+        print(f"Figura: {ruta}")
+    print(f"Completado. Resultados y gráficas actualizados en: {outdir}")
     return 0
 
 

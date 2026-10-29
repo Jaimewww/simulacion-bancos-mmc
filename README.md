@@ -1,9 +1,9 @@
 # Simulación bancaria M/M/c con arquitectura MVC
 
 Trabajo de Simulación, Universidad Nacional de Loja. Comparación de FCFS y
-prioridad no expropiativa con cajeros compartidos. **Estado: B1 y B2
-implementados; C1/C2 incluyen métricas, experimentos y CLI; D1 genera las
-figuras del informe y D2 el tablero estático desde eventos reales.**
+prioridad no expropiativa con cajeros compartidos. El proyecto incluye motor
+de eventos discretos, métricas, experimentos con réplicas, seis figuras para
+las dos familias y una interfaz local con replay y gráficas dinámicas.
 
 ## Arquitectura
 
@@ -11,25 +11,58 @@ figuras del informe y D2 el tablero estático desde eventos reales.**
 |---|---|---|
 | Modelo | `src/modelo/` | Parámetros, clientes, estado, DES, métricas y Erlang C |
 | Controlador | `src/control/` | Experimentos, semillas, réplicas y exportación |
-| Vista | `src/vista/` | Gráficas y tablero de colas/cajeros |
-| Entrada | `main.py` | CLI que invoca al controlador |
+| Vista | `src/vista/` y `app_local.py` | Figuras, tablero, replay y gráficas dinámicas |
+| Entrada | `main.py` | Asistente de experimentos y CLI avanzada |
 
 El modelo no importa control ni vista. La vista consume resultados; no
 elige al próximo cliente. El controlador no duplica la lógica de atención.
+
+## Estructura actual
+
+```text
+PROYECTO U1/
+├── resultados_experimentos/       # única carpeta de resultados
+│   ├── replicas.csv
+│   ├── resumen.csv
+│   ├── metadata.json
+│   └── figuras/                    # seis PNG al ejecutar ambas familias
+└── simulacion-bancos-mmc/
+    ├── app_local.py                # interfaz y gráficas en tiempo real
+    ├── main.py                     # experimentos, exportación y figuras
+    ├── requirements.txt
+    ├── README.md
+    ├── src/
+    │   ├── control/
+    │   │   ├── experimentos.py
+    │   │   └── tablero.py
+    │   ├── modelo/
+    │   │   ├── analitico.py
+    │   │   ├── cliente.py
+    │   │   ├── metricas.py
+    │   │   ├── motor_des.py
+    │   │   ├── parametros.py
+    │   │   ├── resultados.py
+    │   │   └── sistema.py
+    │   └── vista/
+    │       ├── animacion.py
+    │       └── graficas.py
+    └── tests/                      # pruebas automatizadas
+```
+
+`.venv/`, `.git/` y `__pycache__/` se omiten del árbol porque son entorno,
+control de versiones y caché, no código del sistema.
 
 ## Arranque y comprobación actuales
 
 Python 3.10 o superior. B2 utiliza NumPy para el generador reproducible; crear
 un entorno virtual e instalar las dependencias antes de ejecutar las pruebas.
 
-Desde la raíz, en PowerShell (sin `PYTHONPATH`):
+Desde la raíz del repositorio, en Linux:
 
-```powershell
-.venv/Scripts/python.exe -m pip install -r requirements.txt
-Remove-Item Env:PYTHONPATH -ErrorAction SilentlyContinue
-.venv/Scripts/python.exe -m unittest discover -s tests -v
-.venv/Scripts/python.exe main.py --help
-.venv/Scripts/python.exe main.py --familia marhamah --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --replicas 10 --semilla-base 12345 --salida resultados_experimentos
+```bash
+python3 -m venv .venv
+.venv/bin/python -m pip install -r requirements.txt
+.venv/bin/python -m unittest discover -s tests -v
 ```
 
 La CLI acepta `--familia adams_yeboah|marhamah|ambas`, `--solo-fcfs` y
@@ -39,13 +72,38 @@ Errores de parámetros terminan con código 2. Se usa exclusivamente el paquete
 `src.modelo`/`src.control`, sin modificar `sys.path` ni crear alias de módulos.
 NumPy genera la carga y SciPy calcula cuantiles t; instalar `requirements.txt`.
 
+### Generación sencilla de todos los resultados
+
+Desde la carpeta del repositorio ejecuta `main.py` sin argumentos:
+
+```bash
+.venv/bin/python main.py
+```
+
+El propio programa ejecuta las dos familias y pregunta la proporción
+preferencial y las réplicas. La proporción es la parte del total de clientes
+que tiene prioridad: `p=0.25` significa 25 %. Todo se guarda en la única
+carpeta `../resultados_experimentos/`, situada junto a `simulacion-bancos-mmc`,
+donde se reemplazan automáticamente
+`replicas.csv`, `resumen.csv`, `metadata.json` y las imágenes `d1_*.png` de
+`figuras/`; no se acumulan versiones repetidas. También se puede usar la CLI
+avanzada con argumentos. `main.py` genera las gráficas automáticamente, por lo
+que ya no hace falta ejecutar otro comando.
+
+Ejemplo avanzado equivalente:
+
+```bash
+.venv/bin/python main.py --familia ambas --p 0.25 --replicas 30
+```
+
 ## Experimentos y métricas C1/C2
 
 Las familias conservan sus unidades: horas para Adams/Yeboah y minutos para
 Marhamah; horizonte, calentamiento, Wq y W usan esa unidad. Lq se expresa en
 clientes y la utilización es una fracción. Por defecto se usan 8/1 horas o
-480/60 minutos (horizonte/calentamiento), 10 réplicas y p=0.3, rotulados como
-supuestos experimentales, sin justificación piloto todavía. `--horizon` y
+480/60 minutos (horizonte/calentamiento). El asistente propone 30 réplicas y
+p=0.25; la CLI avanzada conserva 10 y p=0.3 si se omiten. Son supuestos
+experimentales, sin justificación piloto todavía. `--horizon` y
 `--warmup` se aplican en la unidad propia de cada familia, también con `ambas`.
 `--origen-p` registra la fuente o el supuesto declarado; no se inventan
 proporciones por condición demográfica. Sin tau_p y tau_g no se selecciona
@@ -83,16 +141,18 @@ Wq global, Lq y utilización con Erlang C (solo rho<1), reportando diferencias
 y si el teórico cae en el IC. Esto no prueba equivalencia ni corrige el sesgo
 de bordes; hay comparaciones múltiples. No se asigna Erlang C global a niveles.
 
-En `--salida` se crean archivos UTF-8 con marca temporal:
+En `--salida` se crean tres archivos UTF-8 con nombres fijos. Cada ejecución
+reemplaza los resultados generados anteriormente en esa carpeta, sin borrar
+otros archivos del usuario:
 
-- `replicas_*.csv`: escenario, disciplina, semilla, p/origen, unidad, ventana,
+- `replicas.csv`: escenario, disciplina, semilla, p/origen, unidad, ventana,
   conteos y pendientes separados por cola/servicio y nivel, Wq y tamaños de
   muestra, W/servicio por nivel, Lq, utilización y verificaciones de Little
   como JSON en `little_json`, además de `conservacion_ok`.
-- `resumen_*.csv`: una fila por escenario/disciplina; cada métrica incluye
+- `resumen.csv`: una fila por escenario/disciplina; cada métrica incluye
   `_media`, `_n`, `_ic95_inf`, `_ic95_sup`, `_metodo`, `_nota`; semillas y
   contraste Erlang C en `coherencia_json`. Son IC entre réplicas válidas.
-- `metadata_*.json`: configuración, semillas, agregados, contrastes y
+- `metadata.json`: configuración, semillas, agregados, contrastes y
   verificaciones detalladas por réplica. No serializa objetos de corrida
   como cadenas opacas.
 
@@ -104,11 +164,11 @@ requieren estudio piloto antes de sacar conclusiones del estudio.
 
 ## Figuras D1 (vista)
 
-```powershell
-.venv/Scripts/python.exe -m src.vista.graficas salidas/experimentos/resumen_<marca>.csv --salida salidas/figuras
+```bash
+.venv/bin/python -m src.vista.graficas ../resultados_experimentos/resumen.csv --salida ../resultados_experimentos/figuras
 ```
 
-La vista consume un `resumen_*.csv` de C2 y no simula ni recalcula: los
+La vista consume `resumen.csv` de C2 y no simula ni recalcula: los
 teóricos se copian de `coherencia_json`. Por familia crea
 `d1_<familia>_wq_niveles.png`, `_wq_global_erlang.png` y
 `_utilizacion_ociosidad.png`: Wq por nivel con FCFS y prioridad, Wq global
@@ -121,17 +181,15 @@ estudio". El backend lo elige el entorno (`MPLBACKEND=Agg` en pruebas) y la
 CLI cierra las figuras. Son figuras descriptivas: sin τp/τg no se elige
 capacidad óptima.
 
+`main.py` ya genera las figuras automáticamente. El comando anterior queda
+disponible para regenerarlas desde el resumen sin repetir las simulaciones.
+
 ## Tablero D2 (vista)
 
-Cadena completa de ejemplo (una sola corrida real por tablero):
+Ejemplo de una captura estática independiente:
 
-```powershell
-# 1) experimentos C2 -> CSV de réplicas y resumen
-.venv/Scripts/python.exe main.py --familia marhamah --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --replicas 10 --semilla-base 12345 --salida salidas/experimentos
-# 2) figuras D1 desde el resumen recién creado (usar la marca de tiempo)
-.venv/Scripts/python.exe -m src.vista.graficas salidas/experimentos/resumen_<marca>.csv --salida salidas/figuras
-# 3) tablero D2 desde una corrida real del motor
-.venv/Scripts/python.exe -m src.control.tablero --familia marhamah --c 3 --p 0.3 --origen-p "supuesto de sensibilidad, no medicion" --horizon 480 --warmup 60 --semilla 12345 --instante 300 --salida salidas/tablero/tablero.png
+```bash
+.venv/bin/python -m src.control.tablero --familia marhamah --c 3 --p 0.3 --origen-p "supuesto de sensibilidad" --horizon 480 --warmup 60 --semilla 12345 --instante 300 --salida ../resultados_experimentos/tablero.png
 ```
 
 `--p`, `--origen-p`, `--horizon` y `--warmup` son obligatorios: no hay valores
@@ -155,9 +213,11 @@ datos de **campo** ni mediciones del banco. Solo los fixtures de prueba son
 descriptiva de una corrida: no estima esperas estacionarias, no aporta IC y
 no elige capacidad óptima. La censura sigue presente: clientes en cola o en
 servicio al instante mostrado tienen resultados incompletos. El replay
-event-by-event (interactivo) **no está implementado**; queda como opcional.
+interactivo se implementó posteriormente en la vista local Python descrita
+más adelante; reutiliza este mismo registro de eventos y no contiene un
+segundo simulador.
 
-**Declaración de IA.** Para D1/D2 se utilizó asistencia de IA en código,
+**Declaración de IA.** Para D1/D2 y la vista local se utilizó asistencia de IA en código,
 pruebas y documentación. El equipo debe revisar, comprender y adaptar esta
 declaración al formato del curso. No se acredita automáticamente cumplir
 el límite de uso de IA del 20 % ni se atribuye un origen no verificado al
@@ -186,12 +246,62 @@ académico; no se inventan mediciones ni proporciones demográficas.
 
 ## Trabajo del grupo
 
-- [Orden de los ocho commits](contributing.md): Ivett → Fernando → Alex → Jaime.
-- [Tareas y criterios de aceptación](docs/tasks.md).
-- [Recurso visual y tablero](docs/recurso_visual.md).
-- [Vista local interactiva en Python](docs/vista_local.md), conectada
-  directamente al motor y al registro de eventos del modelo.
-- Documento académico original: `Simulación_Bancos.docx`.
+- Orden de los ocho aportes: Ivett → Fernando → Alex → Jaime.
+
+### Tareas y criterios de aceptación
+
+Cada issue agrupó dos aportes consecutivos, con sus propias pruebas y
+documentación. El orden obligatorio fue A1 → A2 → B1 → B2 → C1 → C2 → D1 →
+D2.
+
+- **Ivett — issue #1.** A1 implementó parámetros, familias, unidades,
+  validaciones, descomposición `λp + λg = λ` y estabilidad. A2 implementó
+  clientes, niveles, identidad, marcas temporales, eventos, disciplinas y
+  resultados por corrida. Un cliente con varias condiciones preferenciales
+  se cuenta una sola vez.
+- **Fernando — issue #2.** B1 implementó cajeros compartidos, dos colas
+  lógicas, prioridad no expropiativa, FCFS por nivel y FCFS global. Sus pruebas
+  verifican precedencia, no interrupción, orden y ausencia de cajeros ociosos
+  con clientes esperando. B2 implementó el calendario DES, carga Poisson,
+  servicios exponenciales, semillas reproducibles, registro de eventos y
+  áreas temporales. La corrida corta llegadas en el horizonte, no drena y
+  conserva pendientes.
+- **Alex — issue #3.** C1 implementó P0, Erlang C, Lq, L, Wq, W, utilización,
+  métricas por nivel y contadores pendientes; el contraste estacionario se
+  rechaza con `ρ≥1`. C2 implementó la matriz de familias, capacidades,
+  disciplinas y réplicas, compartiendo carga preasignada entre FCFS y
+  prioridad. Exporta CSV/JSON, IC95 %, semillas y comprobaciones de Erlang C,
+  Little y conservación. Sin `τp`/`τg` no selecciona capacidad óptima.
+- **Jaime — issue #4.** D1 implementó figuras de espera por nivel, contraste
+  global con Erlang C y utilización/ociosidad, con unidades, leyendas, p,
+  réplicas e intervalos. Los fixtures inventados se rotulan como sintéticos.
+  D2 reconstruye el tablero de cajeros y colas desde eventos reales, sin
+  modificar la corrida. Incluye reloj, leyenda, captura estática y replay
+  interactivo local.
+
+Antes de interpretar los experimentos deben registrarse p y su origen,
+unidad, calentamiento, duración, réplicas y los criterios `τp`/`τg` si se
+definen. Una prueba piloto debe justificar duración, calentamiento y número
+de réplicas. La prioridad redistribuye la espera, pero no garantiza una
+reducción global. No se inventan proporciones por condición demográfica ni se
+exigen desigualdades estrictas en cada corrida finita.
+
+### Vista local interactiva en Python
+
+La interfaz utiliza directamente `ParametrosEscenario`, `MotorDES`,
+`ResultadoCorrida` y `reconstruir_tablero`; no contiene un motor JavaScript ni
+requiere servidor web.
+
+```bash
+.venv/bin/python app_local.py
+```
+
+Permite editar tasas, semilla, disciplina, horizonte, velocidad y entre 1 y
+24 cajeros. Las dos colas y la tabla de cajeros tienen desplazamiento. El
+replay se construye exclusivamente con eventos del backend. Las gráficas se
+muestran al lado derecho del tablero y avanzan con el mismo reloj: presentan
+la ocupación hasta el instante actual y la capacidad ocupada/libre. También
+muestran `ρ` teórico y el estado estable o saturado del escenario.
 
 Dos familias separadas: Adams/Yeboah (45 clientes/h, 12 clientes/h/cajero,
 c=8…12) y Marhamah (0.3246 clientes/min, 0.2839 clientes/min/cajero, c=2…5).
