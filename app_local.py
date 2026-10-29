@@ -23,6 +23,59 @@ VERDE, AZUL, TINTA = "#0f795e", "#3957c8", "#17312c"
 PAPEL, SUPERFICIE, MUTED = "#f5f2e9", "#fffdf7", "#63706b"
 
 
+class ColaVisual(tk.Frame):
+    """Cola horizontal con personas dibujadas desde los ids del replay."""
+
+    def __init__(self, parent, titulo: str, color: str) -> None:
+        super().__init__(parent, bg=SUPERFICIE, highlightbackground="#d7d2c5",
+                         highlightthickness=1)
+        self.color = color
+        tk.Label(self, text=titulo, bg=SUPERFICIE, fg=color,
+                 font=("TkDefaultFont", 9, "bold")).grid(
+                     row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(5, 1))
+        self.canvas = tk.Canvas(self, height=100, bg=SUPERFICIE,
+                                highlightthickness=0)
+        sx = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        sy = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(xscrollcommand=sx.set, yscrollcommand=sy.set)
+        self.canvas.grid(row=1, column=0, sticky="nsew", padx=(5, 0))
+        sy.grid(row=1, column=1, sticky="ns")
+        sx.grid(row=2, column=0, sticky="ew", padx=(5, 0), pady=(0, 4))
+        self.columnconfigure(0, weight=1); self.rowconfigure(1, weight=1)
+        self.actualizar((), "")
+
+    def actualizar(self, clientes, prefijo: str) -> None:
+        self.canvas.delete("all")
+        if not clientes:
+            self.canvas.create_text(18, 48, text="Cola vacía · próximo cliente entra aquí",
+                                    anchor="w", fill=MUTED,
+                                    font=("TkDefaultFont", 9, "italic"))
+            self.canvas.configure(scrollregion=(0, 0, 330, 96))
+            return
+        for indice, cliente_id in enumerate(clientes):
+            x, y = 42 + indice * 78, 47
+            # Flecha de avance hacia los cajeros y número de posición.
+            if indice == 0:
+                self.canvas.create_text(x - 30, y, text="▶", fill=self.color,
+                                        font=("TkDefaultFont", 12, "bold"))
+            self.canvas.create_oval(x - 11, y - 34, x + 11, y - 12,
+                                    fill="#ffd3b6", outline=TINTA, width=1)
+            self.canvas.create_rectangle(x - 13, y - 11, x + 13, y + 20,
+                                         fill=self.color, outline=TINTA, width=1)
+            self.canvas.create_line(x - 13, y - 3, x - 24, y + 10,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x + 13, y - 3, x + 24, y + 10,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x - 6, y + 20, x - 12, y + 34,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x + 6, y + 20, x + 12, y + 34,
+                                    fill=TINTA, width=2)
+            self.canvas.create_text(x, y + 44, text=f"{indice + 1}º · {prefijo}{cliente_id}",
+                                    fill=TINTA, font=("TkDefaultFont", 8, "bold"))
+        ancho = max(330, 82 + len(clientes) * 78)
+        self.canvas.configure(scrollregion=(0, 0, ancho, 100))
+
+
 @dataclass(frozen=True)
 class ConfiguracionVista:
     llegadas_hora: float
@@ -310,14 +363,10 @@ class AplicacionSimulacion(tk.Tk):
 
     @staticmethod
     def _lista(parent, title, color, column):
-        frame = tk.LabelFrame(parent, text=title, bg=SUPERFICIE, fg=color, padx=6, pady=6)
-        frame.grid(row=0, column=column, sticky="nsew", padx=4); parent.columnconfigure(column, weight=1)
-        box = tk.Listbox(frame, height=4, fg=color, font=("TkFixedFont", 9))
-        sx, sy = ttk.Scrollbar(frame, orient="horizontal", command=box.xview), ttk.Scrollbar(frame, orient="vertical", command=box.yview)
-        box.configure(xscrollcommand=sx.set, yscrollcommand=sy.set)
-        box.grid(row=0, column=0, sticky="nsew"); sy.grid(row=0, column=1, sticky="ns"); sx.grid(row=1, column=0, sticky="ew")
-        frame.columnconfigure(0, weight=1)
-        return box
+        cola = ColaVisual(parent, title, color)
+        cola.grid(row=0, column=column, sticky="nsew", padx=4)
+        parent.columnconfigure(column, weight=1)
+        return cola
 
     def _config(self) -> ConfiguracionVista:
         return ConfiguracionVista(float(self.llegadas.get()), float(self.servicio.get()),
@@ -365,9 +414,7 @@ class AplicacionSimulacion(tk.Tk):
         self.reloj.set(f"{minutes:02d}:{seconds:02d}")
         for widget, ids, prefix in ((self.pref, state.cola_preferencial, "P"),
                                     (self.general, state.cola_general, "G")):
-            widget.delete(0, "end")
-            for pos, cid in enumerate(ids, 1): widget.insert("end", f"{pos:02d} · {prefix}{cid}")
-            if not ids: widget.insert("end", "— cola vacía —")
+            widget.actualizar(ids, prefix)
         self.tabla.delete(*self.tabla.get_children())
         for n, cid in enumerate(state.cajeros, 1):
             self.tabla.insert("", "end", values=(f"Cajero {n:02d} · " + ("OCUPADO" if cid is not None else "LIBRE"),

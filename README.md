@@ -302,7 +302,10 @@ requiere servidor web.
 ```
 
 Permite editar tasas, semilla, disciplina, horizonte, velocidad y entre 1 y
-24 cajeros. Las dos colas y la tabla de cajeros tienen desplazamiento. El
+24 cajeros. Las dos colas representan a cada cliente mediante una persona
+dibujada, con posición e identificador; avanzan dinámicamente con el replay y
+conservan desplazamiento para filas largas. La tabla de cajeros también tiene
+desplazamiento. El
 replay se construye exclusivamente con eventos del backend. Las gráficas se
 muestran al lado derecho del tablero y avanzan con el mismo reloj: presentan
 la ocupación hasta el instante actual y la capacidad ocupada/libre. También
