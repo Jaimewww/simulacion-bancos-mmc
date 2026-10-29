@@ -31,6 +31,7 @@ PROYECTO U1/
     ├── main.py                     # experimentos, exportación y figuras
     ├── requirements.txt
     ├── README.md
+    ├── docs/index.md              # puente mínimo para el check heredado de Pages
     ├── src/
     │   ├── control/
     │   │   ├── experimentos.py
@@ -51,6 +52,10 @@ PROYECTO U1/
 
 `.venv/`, `.git/` y `__pycache__/` se omiten del árbol porque son entorno,
 control de versiones y caché, no código del sistema.
+
+`docs/index.md` no contiene otra versión de la documentación ni una vista
+web: solo enlaza este README porque el repositorio conserva un check heredado
+de GitHub Pages configurado sobre `docs/`.
 
 ## Arranque y comprobación actuales
 
