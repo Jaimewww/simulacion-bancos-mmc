@@ -1,8 +1,7 @@
 import unittest
 from src.modelo.resultados import Disciplina, ResultadoCorrida
-from src.vista.app_local import (ConfiguracionVista, crear_parametros,
-                                 ejecutar_simulacion, resumen_capacidad,
-                                 serie_ocupacion)
+from app_local import (ConfiguracionVista, crear_parametros, ejecutar_simulacion,
+                       resumen_capacidad, serie_ocupacion, serie_ocupacion_hasta)
 
 def config(**changes):
     base=dict(llegadas_hora=18, servicios_hora=12, cajeros=3,
@@ -30,5 +29,15 @@ class VistaLocalTests(unittest.TestCase):
         self.assertTrue(all(0 <= valor <= resultado.parametros.c for valor in ocupados))
         self.assertAlmostEqual(datos["rho"],resultado.parametros.rho)
         self.assertAlmostEqual(datos["utilizacion"],resultado.metricas["utilizacion"])
+
+    def test_ocupacion_dinamica_se_recorta_al_reloj(self):
+        resultado=ejecutar_simulacion(config())
+        instante=resultado.parametros.horizon/2
+        tiempos,ocupados=serie_ocupacion_hasta(resultado,instante)
+        self.assertEqual(tiempos[-1],instante)
+        self.assertTrue(all(t <= instante for t in tiempos))
+        self.assertTrue(all(0 <= valor <= resultado.parametros.c for valor in ocupados))
+        with self.assertRaises(ValueError):
+            serie_ocupacion_hasta(resultado,resultado.parametros.horizon+1)
 
 if __name__ == "__main__": unittest.main()

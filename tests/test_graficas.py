@@ -1,7 +1,7 @@
 """D1 view tests: figuras de espera, Erlang C y utilización/ociosidad.
 
 Las filas son sintéticas y se construyen a mano con las mismas columnas que
-exporta `main.py` en `resumen_*.csv`; se rotulan como datos sintéticos. La
+exporta `main.py` en `resumen.csv`; se rotulan como datos sintéticos. La
 vista no simula ni calcula métricas: solo dibuja lo exportado.
 """
 
@@ -243,13 +243,19 @@ class GraficasTests(unittest.TestCase):
 
     def test_nombres_de_archivo(self):
         figuras = graficas.generar_figuras(self.leer(familia_sintetica()))
-        rutas = graficas.guardar_figuras(figuras, Path(self.tmp.name) / "figuras")
+        directorio = Path(self.tmp.name) / "figuras"
+        directorio.mkdir()
+        (directorio / "d1_anterior.png").write_bytes(b"anterior")
+        (directorio / "foto.png").write_bytes(b"conservar")
+        rutas = graficas.guardar_figuras(figuras, directorio)
         self.assertEqual([Path(r).name for r in rutas],
                          ["d1_marhamah_wq_niveles.png", "d1_marhamah_wq_global_erlang.png",
                           "d1_marhamah_utilizacion_ociosidad.png"])
         for ruta in rutas:
             self.assertTrue(Path(ruta).is_file())
             self.assertGreater(Path(ruta).stat().st_size, 0)
+        self.assertFalse((directorio / "d1_anterior.png").exists())
+        self.assertEqual((directorio / "foto.png").read_bytes(), b"conservar")
 
     def test_no_muta_datos_leidos(self):
         filas = self.leer(familia_sintetica())

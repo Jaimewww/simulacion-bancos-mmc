@@ -7,6 +7,7 @@ No contiene otro simulador. Cada fotograma se reconstruye desde los eventos de
 from __future__ import annotations
 
 import tkinter as tk
+import time
 from dataclasses import dataclass
 from tkinter import messagebox, ttk
 
@@ -16,10 +17,63 @@ from matplotlib.figure import Figure
 from src.modelo.motor_des import MotorDES
 from src.modelo.parametros import ParametrosEscenario, Unidad
 from src.modelo.resultados import Disciplina, ResultadoCorrida, TipoEvento
-from src.vista.animacion import EstadoTablero, reconstruir_tablero
+from src.vista.animacion import reconstruir_tablero
 
 VERDE, AZUL, TINTA = "#0f795e", "#3957c8", "#17312c"
 PAPEL, SUPERFICIE, MUTED = "#f5f2e9", "#fffdf7", "#63706b"
+
+
+class ColaVisual(tk.Frame):
+    """Cola horizontal con personas dibujadas desde los ids del replay."""
+
+    def __init__(self, parent, titulo: str, color: str) -> None:
+        super().__init__(parent, bg=SUPERFICIE, highlightbackground="#d7d2c5",
+                         highlightthickness=1)
+        self.color = color
+        tk.Label(self, text=titulo, bg=SUPERFICIE, fg=color,
+                 font=("TkDefaultFont", 9, "bold")).grid(
+                     row=0, column=0, columnspan=2, sticky="w", padx=8, pady=(5, 1))
+        self.canvas = tk.Canvas(self, height=100, bg=SUPERFICIE,
+                                highlightthickness=0)
+        sx = ttk.Scrollbar(self, orient="horizontal", command=self.canvas.xview)
+        sy = ttk.Scrollbar(self, orient="vertical", command=self.canvas.yview)
+        self.canvas.configure(xscrollcommand=sx.set, yscrollcommand=sy.set)
+        self.canvas.grid(row=1, column=0, sticky="nsew", padx=(5, 0))
+        sy.grid(row=1, column=1, sticky="ns")
+        sx.grid(row=2, column=0, sticky="ew", padx=(5, 0), pady=(0, 4))
+        self.columnconfigure(0, weight=1); self.rowconfigure(1, weight=1)
+        self.actualizar((), "")
+
+    def actualizar(self, clientes, prefijo: str) -> None:
+        self.canvas.delete("all")
+        if not clientes:
+            self.canvas.create_text(18, 48, text="Cola vacía · próximo cliente entra aquí",
+                                    anchor="w", fill=MUTED,
+                                    font=("TkDefaultFont", 9, "italic"))
+            self.canvas.configure(scrollregion=(0, 0, 330, 96))
+            return
+        for indice, cliente_id in enumerate(clientes):
+            x, y = 42 + indice * 78, 47
+            # Flecha de avance hacia los cajeros y número de posición.
+            if indice == 0:
+                self.canvas.create_text(x - 30, y, text="▶", fill=self.color,
+                                        font=("TkDefaultFont", 12, "bold"))
+            self.canvas.create_oval(x - 11, y - 34, x + 11, y - 12,
+                                    fill="#ffd3b6", outline=TINTA, width=1)
+            self.canvas.create_rectangle(x - 13, y - 11, x + 13, y + 20,
+                                         fill=self.color, outline=TINTA, width=1)
+            self.canvas.create_line(x - 13, y - 3, x - 24, y + 10,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x + 13, y - 3, x + 24, y + 10,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x - 6, y + 20, x - 12, y + 34,
+                                    fill=TINTA, width=2)
+            self.canvas.create_line(x + 6, y + 20, x + 12, y + 34,
+                                    fill=TINTA, width=2)
+            self.canvas.create_text(x, y + 44, text=f"{indice + 1}º · {prefijo}{cliente_id}",
+                                    fill=TINTA, font=("TkDefaultFont", 8, "bold"))
+        ancho = max(330, 82 + len(clientes) * 78)
+        self.canvas.configure(scrollregion=(0, 0, ancho, 100))
 
 
 @dataclass(frozen=True)
@@ -81,6 +135,29 @@ def serie_ocupacion(resultado: ResultadoCorrida) -> tuple[list[float], list[int]
     return tiempos, ocupados
 
 
+def serie_ocupacion_hasta(
+    resultado: ResultadoCorrida, instante: float
+) -> tuple[list[float], list[int]]:
+    """Recorta la ocupación al reloj del replay, conservando el último estado."""
+    if not 0 <= instante <= resultado.parametros.horizon:
+        raise ValueError("El instante debe pertenecer al horizonte de la corrida.")
+    tiempos, ocupados, cantidad = [0.0], [0], 0
+    for evento in resultado.eventos:
+        if evento.instante > instante:
+            break
+        if evento.tipo is TipoEvento.INICIO_SERVICIO:
+            cantidad += 1
+        elif evento.tipo is TipoEvento.FIN_SERVICIO:
+            cantidad -= 1
+        else:
+            continue
+        tiempos.append(evento.instante)
+        ocupados.append(cantidad)
+    tiempos.append(float(instante))
+    ocupados.append(cantidad)
+    return tiempos, ocupados
+
+
 def resumen_capacidad(resultado: ResultadoCorrida) -> dict[str, float]:
     """Carga, capacidad y utilizaciones comparables de una corrida real."""
     p = resultado.parametros
@@ -103,6 +180,7 @@ class AplicacionSimulacion(tk.Tk):
         self.configure(bg=PAPEL)
         self.resultado: ResultadoCorrida | None = None
         self.instante, self.en_reproduccion, self._after_id = 0.0, False, None
+        self._ultimo_redibujo = 0.0
         self._estilos()
         self._variables()
         self._interfaz()
@@ -178,12 +256,12 @@ class AplicacionSimulacion(tk.Tk):
         ttk.Spinbox(parent, textvariable=variable, from_=minimo, to=maximo).pack(fill="x")
 
     def _contenido(self, contenedor) -> None:
-        paginas = ttk.Notebook(contenedor)
-        paginas.pack(fill="both", expand=True)
-        sala = ttk.Frame(paginas, style="Sala.TFrame")
-        graficas = ttk.Frame(paginas, style="Sala.TFrame")
-        paginas.add(sala, text="  Simulacion  ")
-        paginas.add(graficas, text="  Graficas  ")
+        panel = ttk.Panedwindow(contenedor, orient="horizontal")
+        panel.pack(fill="both", expand=True)
+        sala = ttk.Frame(panel, style="Sala.TFrame")
+        graficas = ttk.Frame(panel, style="Sala.TFrame", width=420)
+        panel.add(sala, weight=3)
+        panel.add(graficas, weight=2)
         self._sala(sala)
         self._graficas(graficas)
 
@@ -211,10 +289,13 @@ class AplicacionSimulacion(tk.Tk):
         self.tiempo.pack(fill="x", padx=22, pady=16)
 
     def _graficas(self, parent) -> None:
-        self.figura = Figure(figsize=(8.2, 6.3), dpi=100, facecolor=PAPEL)
+        ttk.Label(parent, text="MONITOREO EN TIEMPO REAL", background=PAPEL,
+                  foreground=AZUL, font=("TkDefaultFont", 9, "bold")).pack(
+                      anchor="w", padx=12, pady=(18, 0))
+        self.figura = Figure(figsize=(4.5, 6.3), dpi=100, facecolor=PAPEL)
         self.ax_ocupacion = self.figura.add_subplot(211)
         self.ax_capacidad = self.figura.add_subplot(212)
-        self.figura.subplots_adjust(left=.1, right=.96, top=.94, bottom=.1, hspace=.5)
+        self.figura.subplots_adjust(left=.18, right=.95, top=.94, bottom=.1, hspace=.52)
         self.canvas = FigureCanvasTkAgg(self.figura, master=parent)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=12, pady=12)
         self._graficas_vacias()
@@ -228,48 +309,64 @@ class AplicacionSimulacion(tk.Tk):
             ax.set_xticks([]); ax.set_yticks([])
         self.canvas.draw_idle()
 
-    def actualizar_graficas(self) -> None:
+    def preparar_graficas(self) -> None:
+        """Crea una vez los artistas; durante el replay solo cambian sus datos."""
         if self.resultado is None:
             return
         datos = resumen_capacidad(self.resultado)
-        tiempos, ocupados = serie_ocupacion(self.resultado)
         ax = self.ax_ocupacion; ax.clear()
-        ax.step(tiempos, ocupados, where="post", color=VERDE, linewidth=1.7,
-                label="Cajeros ocupados")
-        ax.fill_between(tiempos, ocupados, step="post", color=VERDE, alpha=.18)
+        self.linea_ocupacion, = ax.plot([], [], drawstyle="steps-post", color=VERDE,
+                                        linewidth=1.7, label="Cajeros ocupados")
         ax.axhline(datos["capacidad"], color=AZUL, linestyle="--",
-                   label=f'Capacidad instalada: {int(datos["capacidad"])}')
-        ax.set(title="Ocupacion real de los cajeros", xlabel="Tiempo (minutos)",
+                   label=f'Capacidad: {int(datos["capacidad"])}')
+        self.linea_ahora = ax.axvline(0, color="#d65b4a", linewidth=1, alpha=.8,
+                                      label="Reloj del replay")
+        ax.set(title="Ocupación de cajeros", xlabel="Tiempo (minutos)",
                ylabel="Cajeros ocupados", xlim=(0, self.resultado.parametros.horizon),
                ylim=(0, datos["capacidad"] + 1))
-        ax.grid(axis="y", alpha=.2); ax.legend(loc="upper right", fontsize=8)
+        ax.grid(axis="y", alpha=.2); ax.legend(loc="upper right", fontsize=7)
 
         ax = self.ax_capacidad; ax.clear()
-        colores = ["#d65b4a" if datos["rho"] >= 1 else VERDE, AZUL]
-        ax.barh(["Carga ofrecida\nλ/μ", "Capacidad instalada\nc"],
-                [datos["carga"], datos["capacidad"]], color=colores, height=.55)
+        self.barra_ocupados = ax.barh(["Cajeros"], [0], color="#d65b4a",
+                                      height=.45, label="Ocupados")[0]
+        self.barra_libres = ax.barh(["Cajeros"], [datos["capacidad"]], left=[0],
+                                    color=VERDE, height=.45, label="Libres")[0]
         estado = "SATURADO (ρ ≥ 1)" if datos["rho"] >= 1 else "ESTABLE (ρ < 1)"
-        ax.set_title(f'Capacidad del sistema · {estado}', color=TINTA, fontweight="bold")
-        ax.set_xlabel("Servidores equivalentes")
-        ax.grid(axis="x", alpha=.2)
-        ax.text(.99, .05,
-                f'ρ teorico: {datos["rho"]:.1%}   ·   utilizacion simulada: {datos["utilizacion"]:.1%}\n'
-                f'ociosidad simulada: {1-datos["utilizacion"]:.1%}',
-                ha="right", va="bottom", transform=ax.transAxes, color=TINTA,
-                bbox={"boxstyle": "round,pad=.4", "facecolor": SUPERFICIE,
-                      "edgecolor": "#d7d2c5"})
+        ax.set_title(f'Capacidad actual · {estado}', color=TINTA, fontweight="bold")
+        ax.set_xlabel("Cantidad de cajeros"); ax.set_xlim(0, datos["capacidad"])
+        ax.grid(axis="x", alpha=.2); ax.legend(loc="upper center", fontsize=8, ncol=2)
+        self.texto_capacidad = ax.text(
+            .99, .05, "", ha="right", va="bottom", transform=ax.transAxes, color=TINTA,
+            bbox={"boxstyle": "round,pad=.4", "facecolor": SUPERFICIE,
+                  "edgecolor": "#d7d2c5"})
+        self._ultimo_redibujo = 0.0
+
+    def actualizar_graficas(self, instante: float, *, forzar: bool = False) -> None:
+        if self.resultado is None:
+            return
+        ahora = time.monotonic()
+        if not forzar and ahora - self._ultimo_redibujo < .2:
+            return
+        self._ultimo_redibujo = ahora
+        datos = resumen_capacidad(self.resultado)
+        tiempos, ocupados = serie_ocupacion_hasta(self.resultado, instante)
+        ocupacion_actual = ocupados[-1]
+        self.linea_ocupacion.set_data(tiempos, ocupados)
+        self.linea_ahora.set_xdata([instante, instante])
+        libres = int(datos["capacidad"]) - ocupacion_actual
+        self.barra_ocupados.set_width(ocupacion_actual)
+        self.barra_libres.set_x(ocupacion_actual); self.barra_libres.set_width(libres)
+        self.texto_capacidad.set_text(
+            f'En este instante: {ocupacion_actual}/{int(datos["capacidad"])} ocupados\n'
+            f'ρ teórico del escenario: {datos["rho"]:.1%}')
         self.canvas.draw_idle()
 
     @staticmethod
     def _lista(parent, title, color, column):
-        frame = tk.LabelFrame(parent, text=title, bg=SUPERFICIE, fg=color, padx=6, pady=6)
-        frame.grid(row=0, column=column, sticky="nsew", padx=4); parent.columnconfigure(column, weight=1)
-        box = tk.Listbox(frame, height=4, fg=color, font=("TkFixedFont", 9))
-        sx, sy = ttk.Scrollbar(frame, orient="horizontal", command=box.xview), ttk.Scrollbar(frame, orient="vertical", command=box.yview)
-        box.configure(xscrollcommand=sx.set, yscrollcommand=sy.set)
-        box.grid(row=0, column=0, sticky="nsew"); sy.grid(row=0, column=1, sticky="ns"); sx.grid(row=1, column=0, sticky="ew")
-        frame.columnconfigure(0, weight=1)
-        return box
+        cola = ColaVisual(parent, title, color)
+        cola.grid(row=0, column=column, sticky="nsew", padx=4)
+        parent.columnconfigure(column, weight=1)
+        return cola
 
     def _config(self) -> ConfiguracionVista:
         return ConfiguracionVista(float(self.llegadas.get()), float(self.servicio.get()),
@@ -281,9 +378,10 @@ class AplicacionSimulacion(tk.Tk):
         try: self.resultado = ejecutar_simulacion(self._config())
         except (tk.TclError, TypeError, ValueError) as exc:
             messagebox.showerror("Parámetros inválidos", str(exc), parent=self); return
-        self.instante = 0.; self.tiempo.configure(to=self.resultado.parametros.horizon, state="normal"); self.tiempo.set(0)
+        self.instante = 0.; self.preparar_graficas()
+        self.tiempo.configure(to=self.resultado.parametros.horizon, state="normal"); self.tiempo.set(0)
         self.replay.configure(state="normal"); self.estado.set(f"{len(self.resultado.clientes)} llegadas · semilla {self.resultado.semilla}")
-        self.mostrar(0); self.actualizar_graficas(); self.alternar()
+        self.mostrar(0, forzar_grafica=True); self.alternar()
 
     def alternar(self) -> None:
         if self.resultado is None: return
@@ -310,15 +408,13 @@ class AplicacionSimulacion(tk.Tk):
     def buscar(self, value):
         if self.resultado is not None: self.instante = float(value); self.mostrar(self.instante)
 
-    def mostrar(self, t: float) -> None:
+    def mostrar(self, t: float, *, forzar_grafica: bool = False) -> None:
         state = reconstruir_tablero(self.resultado, t)
         minutes, seconds = int(t), int(round((t-int(t))*60)) % 60
         self.reloj.set(f"{minutes:02d}:{seconds:02d}")
         for widget, ids, prefix in ((self.pref, state.cola_preferencial, "P"),
                                     (self.general, state.cola_general, "G")):
-            widget.delete(0, "end")
-            for pos, cid in enumerate(ids, 1): widget.insert("end", f"{pos:02d} · {prefix}{cid}")
-            if not ids: widget.insert("end", "— cola vacía —")
+            widget.actualizar(ids, prefix)
         self.tabla.delete(*self.tabla.get_children())
         for n, cid in enumerate(state.cajeros, 1):
             self.tabla.insert("", "end", values=(f"Cajero {n:02d} · " + ("OCUPADO" if cid is not None else "LIBRE"),
@@ -331,6 +427,7 @@ class AplicacionSimulacion(tk.Tk):
         q = len(state.cola_preferencial)+len(state.cola_general)
         busy = sum(c is not None for c in state.cajeros)
         self.metricas.set(f"LLEGADAS {arrived:4d}   COLA {q:4d}   ATENDIDOS {served:4d}   ESPERA {wait:6.2f} min   OCUPACIÓN {busy/len(state.cajeros):5.0%}")
+        self.actualizar_graficas(t, forzar=forzar_grafica)
 
     def destroy(self): self.cancelar(); super().destroy()
 
